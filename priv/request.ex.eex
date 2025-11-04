@@ -1,0 +1,16 @@
+# codegen: do not edit
+defmodule <%= SpringCodegen.Codegen.module_name(@request) %> do<%= if @request.description do %>
+  @moduledoc """
+  <%= String.replace(@request.description, "\n", "\n  ") %>
+
+  Source: <%= @request.source %>
+  """<% end %>
+
+  use TypedStruct
+
+  typedstruct do
+    field :method, String.t(), default: "<%= @request.method %>"
+    field :id, integer() | String.t()
+    field :params, Map.t()
+  end
+end

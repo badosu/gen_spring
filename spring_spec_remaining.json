@@ -1,0 +1,2874 @@
+{
+  "commands": [
+    {
+      "command": "LOGININFOEND",
+      "source": "server",
+      "description": "Sent by the server, indicating that it has finished sending the login info, completing the sequence initiated by ACCEPTED",
+      "arguments": [],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "AGREEMENTEND",
+      "source": "server",
+      "description": "Sent by the server after multiple AGREEMENT commands. This way, the server tells the client that he has finished sending the agreement (this is the time when the lobby client should popup the \"agreement\" screen and wait for the user to accept/reject it).",
+      "arguments": [],
+      "examples": [],
+      "response": {
+        "type": "CONFIRMAGREEMENT|LOGIN",
+        "description": "A response is not mandatory, but the server now awaits a CONFIRMAGREEMENT command from the client, providing that the user agreed to the agreement. Otherwise, the client should disconnect from the server, and restart the LOGIN sequence."
+      }
+    },
+    {
+      "command": "CONFIRMAGREEMENT",
+      "source": "client",
+      "description": "Confirm that the user agreed to the user agreement, and supply an email verification code (if necessary). verificationCode:",
+      "arguments": [
+        {
+          "name": "verificationCode",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "ACCEPTED|DENIED",
+        "description": "ACCEPTED, if the verification was either accepted or was not needed. DENIED, if the verification code was not accepted."
+      }
+    },
+    {
+      "command": "MOTD",
+      "source": "server",
+      "description": "Sent by the server after ACCEPTED. The server may send multiple MOTD commands, each MOTD corresponds to one line of the current welcome message. message",
+      "arguments": [
+        {
+          "name": "message",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "RENAMEACCOUNT",
+      "source": "client",
+      "description": "Will rename the current account name to newUsername. The user has to be logged in for this to work. After the server renames the account, it will disconnect the client. newUsername",
+      "arguments": [
+        {
+          "name": "newUsername",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [
+        "RENAMEACCOUNT Johnny2"
+      ],
+      "response": {
+        "type": "SERVERMSG",
+        "description": "No formal response is required, although the server may reply with a SERVERMSG."
+      }
+    },
+    {
+      "command": "CHANGEPASSWORD",
+      "source": "client",
+      "description": "Will change the password of the users's account. oldPassword newPassword",
+      "arguments": [
+        {
+          "name": "oldPassword",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "newPassword",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "SERVERMSG",
+        "description": "No formal response is required, although the server may reply with a SERVERMSG."
+      }
+    },
+    {
+      "command": "CHANGEEMAILREQUEST",
+      "source": "client",
+      "description": "Requests a verification code, to be sent to a new email address that the user wishes to associate to their account. Even if email verification is disabled, it is intended that the client will call this before calling CHANGEEMAIL. If email verification is disabled, the response will be a CHANGEEMAILREQUESTDENIED, containing a message informing the user that a blank verification code will be accepted. newEmail: The email address the user wishes to change too.",
+      "arguments": [
+        {
+          "name": "newEmail",
+          "type": "word",
+          "required": true,
+          "description": "The email address the user wishes to change too."
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "CHANGEEMAILREQUESTACCEPTED|CHANGEEMAILREQUESTDENIED",
+        "description": "CHANGEEMAILREQUESTDENIED or CHANGEEMAILREQUESTACCEPTED"
+      }
+    },
+    {
+      "command": "CHANGEEMAILREQUESTACCEPTED",
+      "source": "server",
+      "description": "Notifies that a verification code was sent, in response to CHANGEEMAILREQUEST. No response is required from the client, although a CHANGEEMAIL command would normally be sent once the user has supplied their verification code.",
+      "arguments": [],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "CHANGEEMAILREQUESTDENIED",
+      "source": "server",
+      "description": "Notifies that a verification code was not sent, in response to CHANGEEMAILREQUEST. errorMsg",
+      "arguments": [
+        {
+          "name": "errorMsg",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "CHANGEEMAIL",
+      "source": "client",
+      "description": "Asks the server to change the email address associated to the client. See also CHANGEEMAILREQUEST, which would typically be called first. newEmail: The email address the user wishes to change too. verificationCode: The verification code recieved as a result of CHANGEEMAILREQUESTACCEPTED.",
+      "arguments": [
+        {
+          "name": "newEmail",
+          "type": "word",
+          "required": true,
+          "description": "The email address the user wishes to change too."
+        },
+        {
+          "name": "verificationCode\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "CHANGEEMAILACCEPTED|CHANGEEMAILDENIED",
+        "description": "CHANGEEMAILDENIED or CHANGEEMAILACCEPTED"
+      }
+    },
+    {
+      "command": "CHANGEEMAILACCEPTED",
+      "source": "server",
+      "description": "Notifies that client that their email address was changed, in response to CHANGEEMAIL.",
+      "arguments": [],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "CHANGEEMAILDENIED",
+      "source": "server",
+      "description": "Notifies that the email address could not be changed, in response to CHANGEEMAIL. errorMsg",
+      "arguments": [
+        {
+          "name": "errorMsg",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "RESENDVERIFICATION",
+      "source": "client",
+      "description": "Request that an active verification code to be re-sent. newEmail: The email address the user wished to change too, or register with, but has forgotten/lost/eaten or not recieved their verification code for.",
+      "arguments": [
+        {
+          "name": "newEmail",
+          "type": "word",
+          "required": true,
+          "description": "The email address the user wished to change too, or register with, but has forgotten/lost/eaten or not recieved their verification code for."
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "RESENDVERIFICATIONACCEPTED|RESENDVERIFICATIONDENIED",
+        "description": "RESENDVERIFICATIONDENIED or RESENDVERIFICATIONACCEPTED"
+      }
+    },
+    {
+      "command": "RESENDVERIFICATIONACCEPTED",
+      "source": "server",
+      "description": "Notifies that a verification code was re-sent, in response to RESENDVERIFICATION.",
+      "arguments": [],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "RESENDVERIFICATIONDENIED",
+      "source": "server",
+      "description": "Notifies that a verification code was not re-sent, in response to RESENDVERIFICATION. errorMsg",
+      "arguments": [
+        {
+          "name": "errorMsg",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "RESETPASSWORDREQUEST",
+      "source": "client",
+      "description": "Requests a verification code, to be sent to the email address of a user wishing to reset their password. email: The email address associated to the acccount.",
+      "arguments": [
+        {
+          "name": "email",
+          "type": "word",
+          "required": true,
+          "description": "The email address associated to the acccount."
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "RESETPASSWORDREQUESTACCEPTED|RESETPASSWORDREQUESTDENIED",
+        "description": "RESETPASSWORDREQUESTACCEPTED or RESETPASSWORDREQUESTDENIED"
+      }
+    },
+    {
+      "command": "RESETPASSWORDREQUESTACCEPTED",
+      "source": "server",
+      "description": "Notifies that a verification code was sent, in response to RESETPASSWORDREQUEST. No response is required from the client, although a RESETPASSWORD command would normally be sent.",
+      "arguments": [],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "RESETPASSWORDREQUESTDENIED",
+      "source": "server",
+      "description": "Notifies that a verification code was not sent, in response to RESETPASSWORDREQUEST. errorMsg",
+      "arguments": [
+        {
+          "name": "errorMsg",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "RESETPASSWORD",
+      "source": "client",
+      "description": "Asks the server to change the password associated to the client. See also RESETPASSWORDREQUEST, which would typically be called first. email: The email address the user wishes to change too. verificationCode: The verification code recieved as a result of RESETPASSWORDREQUESTACCEPTED.",
+      "arguments": [
+        {
+          "name": "email",
+          "type": "word",
+          "required": true,
+          "description": "The email address the user wishes to change too."
+        },
+        {
+          "name": "verificationCode",
+          "type": "word",
+          "required": true,
+          "description": "The verification code recieved as a result of RESETPASSWORDREQUESTACCEPTED."
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "RESETPASSWORDACCEPTED|RESETPASSWORDDENIED",
+        "description": "RESETPASSWORDDENIED or RESETPASSWORDACCEPTED"
+      }
+    },
+    {
+      "command": "RESETPASSWORDACCEPTED",
+      "source": "server",
+      "description": "Notifies that client that their password was changed, in response to RESETPASSWORD. The new password will be emailed to the client.",
+      "arguments": [],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "RESETPASSWORDDENIED",
+      "source": "server",
+      "description": "Notifies that the password could not be changed, in response to RESETPASSWORD. errorMsg",
+      "arguments": [
+        {
+          "name": "errorMsg",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "ADDUSER",
+      "source": "server",
+      "description": "Tells the client that a new user joined a server. The client should add this user to his clients list, which he must maintain while he is connected to the server. userName country: A two-character country code based on ISO 3166 standard. See http://www.iso.org/iso/en/prods-services/iso3166ma/index.html cpu: deprecated, see the LOGIN command. userID lobbyID: A string of text sent by the client, typically identifying the lobby client they are using.",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "country",
+          "type": "word",
+          "required": true,
+          "description": "A two-character country code based on ISO 3166 standard. See http://www.iso.org/iso/en/prods-services/iso3166ma/index.html"
+        },
+        {
+          "name": "cpu",
+          "type": "word",
+          "required": true,
+          "description": "deprecated, see the LOGIN command."
+        },
+        {
+          "name": "userID",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "lobbyID",
+          "type": "sentence",
+          "required": true,
+          "description": "A string of text sent by the client, typically identifying the lobby client they are using."
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "REMOVEUSER",
+      "source": "server",
+      "description": "Indicates that a user disconnected from the server. The client should remove this user from his clients list, which he must maintain while he is connected to the server. userName",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "SERVERMSG",
+      "source": "server",
+      "description": "A general purpose message sent by the server. The lobby client program should display this message to the user in a non-invasive way, but clearly visible to the user (for example, as a SAYEX-style message from the server, printed into all the users chat panels). message",
+      "arguments": [
+        {
+          "name": "message",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [
+        "SERVERMSG Server is going down in 5 minutes for a restart, due to a new update."
+      ],
+      "response": null
+    },
+    {
+      "command": "SERVERMSGBOX",
+      "source": "server",
+      "description": "The lobby client program should display this message to the user in an invasive way, which requires response from the user (for example, in a dialogue box with an OK button). message url: If specified, the lobby client should ask the user if he wants this URL to be opened in a browser window. The lobby client should then (once the user clicked OK) launch the default browser and open this URL in there.",
+      "arguments": [
+        {
+          "name": "message",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "{url}\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "CHANNELS",
+      "source": "client",
+      "description": "Sent by a client when requesting the list of all channels on the server",
+      "arguments": [],
+      "examples": [
+        "JOIN main"
+      ],
+      "response": {
+        "type": "CHANNEL|ENDOFCHANNELS",
+        "description": "A series of CHANNEL commands, followed by an ENDOFCHANNELS command."
+      }
+    },
+    {
+      "command": "CHANNEL",
+      "source": "server",
+      "description": "Sent by the server to a client who requested the channels list via the CHANNELS command. A series of these commands will be sent to the client, one for each open channel. A series of CHANNEL commands is followed by the ENDOFCHANNELS command. chanName userCount: Number of users in the channel. topic: Is omited if the topic is not set for the channel.",
+      "arguments": [
+        {
+          "name": "chanName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "userCount",
+          "type": "word",
+          "required": true,
+          "description": "Number of users in the channel."
+        },
+        {
+          "name": "{topic}\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "ENDOFCHANNELS",
+      "source": "server",
+      "description": "Sent to a client who previously requested the channel list, after a series of CHANNEL commands (one for each channel).",
+      "arguments": [],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "JOIN",
+      "source": "client",
+      "description": "Sent by a client requesting to join a channel. chanName key: If the channel is locked, non-priviledged clients must supply the correct key to join.",
+      "arguments": [
+        {
+          "name": "chanName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "key\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [
+        "JOIN moddev"
+      ],
+      "response": {
+        "type": "JOIN|JOINFAILED",
+        "description": "JOIN or JOINFAILED. See there for further responses."
+      }
+    },
+    {
+      "command": "JOIN",
+      "source": "server",
+      "description": "Sent to a client who has successfully JOINed a channel. The server will now send the client a CLIENTS and a CLIENTSFROM command, which together give the list of users present in the channel. chanName: Name of the channel which the client has just joined",
+      "arguments": [
+        {
+          "name": "chanName",
+          "type": "word",
+          "required": true,
+          "description": "Name of the channel which the client has just joined"
+        }
+      ],
+      "examples": [
+        "JOIN main"
+      ],
+      "response": null
+    },
+    {
+      "command": "JOINFAILED",
+      "source": "server",
+      "description": "Sent if joining a channel failed for some reason. chanName reason",
+      "arguments": [
+        {
+          "name": "chanName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "reason",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "CHANNELTOPIC",
+      "source": "server",
+      "description": "Sent to a client who just JOINed a channel, or who was already present in a channel when the topic was changed. This command informs the client of the current channel topic. chanName author topic",
+      "arguments": [
+        {
+          "name": "chanName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "author",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "topic",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "CHANNELTOPIC",
+      "source": "client",
+      "description": "A request to change a channel's topic, typically sent by a priviledged user. chanName topic",
+      "arguments": [
+        {
+          "name": "chanName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "topic",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "CLIENTS",
+      "source": "server",
+      "description": "Sent to a client who just joined the channel. This command informs the client of the list of users present in the channel, including the client itself. This command is always sent (to a client joining a channel), and the list it conveys includes the newly joined client. It is sent after all the CLIENTSFROM commands. Once CLIENTS has been processed, the joining client has been informed of the full list of other clients and bridged clients currently present in the joined channel. chanName clients: A sentence in which each word is the username of a client present in the channel.",
+      "arguments": [
+        {
+          "name": "chanName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "clients",
+          "type": "sentence",
+          "required": true,
+          "description": "server) has been processed, the joining client has been informed of the full list of other clients and bridged clients currently present in the joined channel."
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "JOINED",
+      "source": "server",
+      "description": "Sent to all clients in a channel (except the new client) when a new user joins the channel. chanName userName",
+      "arguments": [
+        {
+          "name": "chanName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "LEAVE",
+      "source": "client",
+      "description": "Sent by a client when requesting to leave a channel. Note that when the client is disconnected, the client is automatically removed from all channels. chanName",
+      "arguments": [
+        {
+          "name": "chanName",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "LEFT",
+        "description": "None. The server will broadcast the LEFT command to (other) users who remain in the channel."
+      }
+    },
+    {
+      "command": "LEFT",
+      "source": "server",
+      "description": "Sent by the server to inform a client, present in a channel, that another user has left that channel. chanName userName reason",
+      "arguments": [
+        {
+          "name": "chanName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "{reason}\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "CHANNELMESSAGE",
+      "source": "server",
+      "description": "Sent by the server to all clients in a channel. Used to broadcast messages in a channel. chanName message",
+      "arguments": [
+        {
+          "name": "chanName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "message",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "SAY",
+      "source": "client",
+      "description": "Send a chat message to a specific channel. The client has to join the channel first, to be allowed to use this command. chanName message",
+      "arguments": [
+        {
+          "name": "chanName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "message",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "FAILED|JSON|SAID",
+        "description": "See SAID. If the request to speak is denied, a FAILED command will be sent in JSON format."
+      }
+    },
+    {
+      "command": "SAID",
+      "source": "server",
+      "description": "Sent to all clients participating in a specific channel when one of the clients sent a chat message to it (including the author of the message). chanName userName message",
+      "arguments": [
+        {
+          "name": "chanName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "message",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "SAYEX",
+      "source": "client",
+      "description": "Sent by any client requesting to say something in a channel in \"/me\" IRC style. (The SAY command is used for normal chat messages.) chanName message",
+      "arguments": [
+        {
+          "name": "chanName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "message",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "FAILED|JSON|SAIDEX",
+        "description": "See SAIDEX. If the request to speak is denied, a FAILED command will be sent in JSON format."
+      }
+    },
+    {
+      "command": "SAIDEX",
+      "source": "server",
+      "description": "Sent by the server when a client said something using the SAYEX command. chanName userName message",
+      "arguments": [
+        {
+          "name": "chanName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "message",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "SAYPRIVATE",
+      "source": "client",
+      "description": "Send a private chat message to an other client. userName message",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "message",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "SAIDPRIVATE|SAYPRIVATE",
+        "description": "SAYPRIVATE and SAIDPRIVATE"
+      }
+    },
+    {
+      "command": "SAYPRIVATE",
+      "source": "server",
+      "description": "Sent to a client that just sent a SAYPRIVATE command. This notifies the client that the server sent the private message on to its intended recipient. userName message",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "message",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "SAIDPRIVATE",
+      "source": "server",
+      "description": "Sends a private message on to its intended recipient. userName message",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "message",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "SAYPRIVATEEX",
+      "source": "client",
+      "description": "Sent by a client requesting to say something in \"/me\" IRC style in a private message. (Normal chat messages are sent via the SAYPRIVATE command.) userName message",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "message",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "SAIDPRIVATE|SAYPRIVATEEX",
+        "description": "SAYPRIVATEEX and SAIDPRIVATE"
+      }
+    },
+    {
+      "command": "SAYPRIVATEEX",
+      "source": "server",
+      "description": "Sent to a client that just sent a SAYPRIVATE command. This notifies the client that the server sent the private message on to its intended recipient. userName message",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "message",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "SAIDPRIVATEEX",
+      "source": "server",
+      "description": "Sends a private message in \"/me\" IRC style on to its intended recipient. userName message",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "message",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "GETCHANNELMESSAGES",
+      "source": "client",
+      "description": "Sent by a client requesting the history of a channel, since the lastID. chanName lastID",
+      "arguments": [
+        {
+          "name": "chanName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "lastID",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "JSON|SAID",
+        "description": "The server will respond with a sequence of SAID commands via the JSON command, one for each chat message requested (up to a two week limit)."
+      }
+    },
+    {
+      "command": "BRIDGECLIENTFROM",
+      "source": "client",
+      "description": "Sent by a bridge bot notifying the server of a new bridged client. location: 'discord', for example. Battle hosts bridging ingame users should use their own name username as the location. externalID: A string which unqiuely identifies the external client, within its specified location, and which will not change if the external client changes username. externalUsername: The current username of the external client, in its external location.",
+      "arguments": [
+        {
+          "name": "location",
+          "type": "word",
+          "required": true,
+          "description": "'discord', for example. Battle hosts bridging ingame users should use their own name username as the location."
+        },
+        {
+          "name": "externalID",
+          "type": "word",
+          "required": true,
+          "description": "A string which unqiuely identifies the external client, within its specified location, and which will not change if the external client changes username."
+        },
+        {
+          "name": "externalUsername",
+          "type": "word",
+          "required": true,
+          "description": "The current username of the external client, in its external location."
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "BRIDGEDCLIENTFROM|FAILED",
+        "description": "The server will reply with either FAILED or BRIDGEDCLIENTFROM."
+      }
+    },
+    {
+      "command": "BRIDGEDCLIENTFROM",
+      "source": "server",
+      "description": "Sent by the server in response to a successful BRIDGECLIENTFROM command. The server will use 'externalUser:location' as the username for the bridged client. location externalID externalUsername",
+      "arguments": [
+        {
+          "name": "location",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "externalID",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "externalUsername",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "UNBRIDGECLIENTFROM",
+      "source": "client",
+      "description": "Sent by a bridge bot notifying the server that a bridged client has left the bridge. location externalID",
+      "arguments": [
+        {
+          "name": "location",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "externalID",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "FAILED|UNBRIDGEDCLIENTFROM",
+        "description": "The server will reply with either FAILED or UNBRIDGEDCLIENTFROM."
+      }
+    },
+    {
+      "command": "UNBRIDGEDCLIENTFROM",
+      "source": "server",
+      "description": "Sent by the server in response to a successful UNBRIDGECLIENTFROM command. location externalID externalUsername",
+      "arguments": [
+        {
+          "name": "location",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "externalID",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "externalUsername",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "JOINFROM",
+      "source": "client",
+      "description": "Send by a bridge bot requesting to join a bridged client to a channel. chan location externalID",
+      "arguments": [
+        {
+          "name": "chan",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "location",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "externalID",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "FAILED|UNBRIDGECLIENTFROM",
+        "description": "The server will reply with either FAILED or UNBRIDGECLIENTFROM."
+      }
+    },
+    {
+      "command": "JOINEDFROM",
+      "source": "server",
+      "description": "Sent by the server in response to a successful JOINFROM command. chan bridge: The username of the bridge bot for this bridged client. userName: This will have the form externalUsername:location.",
+      "arguments": [
+        {
+          "name": "chan",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "bridge",
+          "type": "word",
+          "required": true,
+          "description": "The username of the bridge bot for this bridged client."
+        },
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": "This will have the form externalUsername:location."
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "LEAVEFROM",
+      "source": "client",
+      "description": "Sent by a bridge bot requesting to remove a bridged client from a channel. chan location externalID",
+      "arguments": [
+        {
+          "name": "chan",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "location",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "externalID",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "FAILED|LEFTFROM",
+        "description": "The server will reply with either FAILED or LEFTFROM."
+      }
+    },
+    {
+      "command": "LEFTFROM",
+      "source": "server",
+      "description": "Sent by the server in response to a successful LEFTFROM command. chan userName: This will have the form externalUsername:location.",
+      "arguments": [
+        {
+          "name": "chan",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": "This will have the form externalUsername:location."
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "SAYFROM",
+      "source": "client",
+      "description": "Sent by a bridge bot to notify that a bridged user spoke into a channel. chan location externalID message",
+      "arguments": [
+        {
+          "name": "chan",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "location",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "externalID",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "{message}\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "FAILED|SAIDFROM",
+        "description": "The server will reply with either FAILED or SAIDFROM."
+      }
+    },
+    {
+      "command": "SAIDFROM",
+      "source": "server",
+      "description": "Sent by the server in response to a successful SAYFROM command. chan userName: This will have the form externalUsername:location. message",
+      "arguments": [
+        {
+          "name": "chan",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": "This will have the form externalUsername:location."
+        },
+        {
+          "name": "{message}\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "CLIENTSFROM",
+      "source": "server",
+      "description": "Sent by the server to a (non-bridged) client who just joined a channel. chan bridge: The username of the bridge bot for the following clients. clients: A list of usernames of clients who are bridged into this channel.",
+      "arguments": [
+        {
+          "name": "chan",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "bridge",
+          "type": "word",
+          "required": true,
+          "description": "The username of the bridge bot for the following clients."
+        },
+        {
+          "name": "clients",
+          "type": "sentence",
+          "required": true,
+          "description": "A list of usernames of clients who are bridged into this channel."
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "OPENBATTLE",
+      "source": "client",
+      "description": "Sent by the client requesting to open a new battle. If the command is successful, the client becomes the founder (i.e. host) of the new battle. Clients without botflags will have their maxPlayers capped at 10; the founding client will be informed via a server message if the server applies this limitation. type: Can be 0 or 1 (0 = normal battle, 1 = battle replay) natType: NAT traversal method used by the host. Must be one of: 0: none 1: Hole punching 2: Fixed source ports password: Must be \"\\*\" if founder does not wish to have password-protected game. port maxPlayers gameHash: A signed 32-bit integer (acquired via the unitsync library). rank: The minimum rank required for a client in the battle to be allowed to become a player. mapHash: A signed 32-bit integer (acquired via the unitsync library). engineName: Use 'Spring' engineVersion: For example: '94.1.1-1062-g9d16c2d develop', same format as in TASSERVER map title gameName",
+      "arguments": [
+        {
+          "name": "type",
+          "type": "word",
+          "required": true,
+          "description": "Can be 0 or 1 (0 = normal battle, 1 = battle replay)"
+        },
+        {
+          "name": "natType",
+          "type": "word",
+          "required": true,
+          "description": "NAT traversal method used by the host. Must be one of: 0: none 1: Hole punching 2: Fixed source ports"
+        },
+        {
+          "name": "password",
+          "type": "word",
+          "required": true,
+          "description": "Must be \"\\*\" if founder does not wish to have password-protected game."
+        },
+        {
+          "name": "port",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "maxPlayers",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "gameHash",
+          "type": "word",
+          "required": true,
+          "description": "A signed 32-bit integer (acquired via the unitsync library)."
+        },
+        {
+          "name": "rank",
+          "type": "word",
+          "required": true,
+          "description": "The minimum rank required for a client in the battle to be allowed to become a player."
+        },
+        {
+          "name": "mapHash",
+          "type": "word",
+          "required": true,
+          "description": "A signed 32-bit integer (acquired via the unitsync library)."
+        },
+        {
+          "name": "engineName",
+          "type": "sentence",
+          "required": true,
+          "description": "Use 'Spring'"
+        },
+        {
+          "name": "engineVersion",
+          "type": "sentence",
+          "required": true,
+          "description": "For example: '94.1.1-1062-g9d16c2d develop', same format as in TASSERVER"
+        },
+        {
+          "name": "map",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "title",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "gameName",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "BATTLEOPENED|OPENBATTLE|OPENBATTLEFAILED",
+        "description": "If accepted: BATTLEOPENED and OPENBATTLE If denied: OPENBATTLEFAILED"
+      }
+    },
+    {
+      "command": "OPENBATTLEFAILED",
+      "source": "server",
+      "description": "Informs a client that tried to open a battle that their request has been rejected. reason",
+      "arguments": [
+        {
+          "name": "reason",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "BATTLEOPENED",
+      "source": "server",
+      "description": "Sent by the server to all registered users, when a new battle becomes open. battleID type: Can be 0 or 1 (0 = normal battle, 1 = battle replay) natType: NAT traversal method used by the host. Must be one of: 0: none 1: Hole punching 2: Fixed source ports founder: Username of the client who started this battle. ip port maxPlayers passworded: A boolean - must be \"0\" (meaning false) or \"1\"! rank mapHash: A signed 32-bit integer (acquired via the unitsync library). engineName: For example: 'my spring' engineVersion: For example: '94.1.1-1062-g9d16c2d develop', See also TASSERVER map title gameName channel: The name of the channel (which will contain no whitespace) in which the chat for this battle takes place. By convention, these channels have names of the form \\_\\_battle\\_\\_1234.",
+      "arguments": [
+        {
+          "name": "battleID",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "type",
+          "type": "word",
+          "required": true,
+          "description": "Can be 0 or 1 (0 = normal battle, 1 = battle replay)"
+        },
+        {
+          "name": "natType",
+          "type": "word",
+          "required": true,
+          "description": "NAT traversal method used by the host. Must be one of: 0: none 1: Hole punching 2: Fixed source ports"
+        },
+        {
+          "name": "founder",
+          "type": "word",
+          "required": true,
+          "description": "Username of the client who started this battle."
+        },
+        {
+          "name": "ip",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "port",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "maxPlayers",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "passworded",
+          "type": "word",
+          "required": true,
+          "description": "A boolean - must be \"0\" (meaning false) or \"1\"!"
+        },
+        {
+          "name": "rank",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "mapHash",
+          "type": "word",
+          "required": true,
+          "description": "A signed 32-bit integer (acquired via the unitsync library)."
+        },
+        {
+          "name": "engineName",
+          "type": "sentence",
+          "required": true,
+          "description": "For example: 'my spring'"
+        },
+        {
+          "name": "engineVersion",
+          "type": "sentence",
+          "required": true,
+          "description": "For example: '94.1.1-1062-g9d16c2d develop', See also TASSERVER"
+        },
+        {
+          "name": "map",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "title",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "gameName",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "channel",
+          "type": "sentence",
+          "required": true,
+          "description": "The name of the channel (which will contain no whitespace) in which the chat for this battle takes place. By convention, these channels have names of the form \\_\\_battle\\_\\_1234."
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "OPENBATTLE",
+      "source": "server",
+      "description": "Sent to a client who previously sent an OPENBATTLE command, if the client's request to open a new battle has been approved. Note that the corresponding BATTLEOPENED command is sent before this command is used to reflect the successful OPENBATTLE command back to the client. After sending this command, the server will send a JOINBATTLE (to notify the founding client that they have joined their own battle) followed by a REQUESTBATTLESTATUS. battleID",
+      "arguments": [
+        {
+          "name": "battleID",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "JOINBATTLE",
+      "source": "client",
+      "description": "Sent by a client requesting to join a battle. battleID password scriptPassword: A random, client-generated string (which is used to avoid account spoofing ingame, and will appear in script.txt). Note that if this argument is sent, a password must be sent too. If the battle is not passworded then an empty password should be sent.",
+      "arguments": [
+        {
+          "name": "battleID",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "password\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "scriptPassword\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "JOINBATTLE|JOINBATTLEFAILED|JOINBATTLEREQUEST",
+        "description": "The server will reply to the client with either JOINBATTLE or JOINBATTLEFAILED. In order to determine which response is given, the server may send a JOINBATTLEREQUEST to the battle founder, and wait for the reply."
+      }
+    },
+    {
+      "command": "JOINBATTLE",
+      "source": "server",
+      "description": "Notifies a client that their request to JOINBATTLE was successful, and that they have just joined the battle. Clients in the battle will be notified of the new user via JOINEDBATTLE. Next, the server will send a series of commands to the newly joined client, which might include DISABLEUNITS, ADDBOT, ADDSTARTRECT, SETSCRIPTTAGS and so on, along with multiple CLIENTBATTLESTATUS, in order to describe the current state of the battle to the joining client. If the battle has natType>0, the server will also send the clients IP port to the host, via the CLIENTIPPORT command. Someone who knows more about this should write more! battleID hashCode: A signed 32-bit integer (acquired via the unitsync library). This code is computed using the current map, game, and other dependencies. It is used to check that the client has correct non-corrupt downloads of the required content. channelName: The name of the chat channel used for this battle.",
+      "arguments": [
+        {
+          "name": "battleID",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "hashCode",
+          "type": "word",
+          "required": true,
+          "description": "A signed 32-bit integer (acquired via the unitsync library). This code is computed using the current map, game, and other dependencies. It is used to check that the client has correct non-corrupt downloads of the required content."
+        },
+        {
+          "name": "channelName",
+          "type": "word",
+          "required": true,
+          "description": "The name of the chat channel used for this battle."
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "JOINBATTLEREQUEST",
+      "source": "server",
+      "description": "Sent by the server to a battle host, each time a client requests to join his battle. userName ip",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "ip",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "JOINBATTLEACCEPT|JOINBATTLEDENY",
+        "description": "The battle host should reply with either JOINBATTLEACCEPT or JOINBATTLEDENY."
+      }
+    },
+    {
+      "command": "JOINBATTLEACCEPT",
+      "source": "client",
+      "description": "Sent by a battle host, in response to a JOINBATTLEREQUEST command, instructing the server to allow the user to join their battle. userName",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "JOINBATTLEDENY",
+      "source": "client",
+      "description": "Sent by a battle host, in response to a JOINBATTLEREQUEST command, instructing the server to disallow the user to join their battle. userName reason",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "{reason}\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "JOINBATTLEFAILED",
+      "source": "server",
+      "description": "Notifies a client that their request to JOINBATTLE was denied. reason",
+      "arguments": [
+        {
+          "name": "reason",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "JOINEDBATTLE",
+      "source": "server",
+      "description": "Sent by the server to all clients when a new client joins the battle. The server does not send this command for a host, when that host opens its own battle. battleID userName scriptPassword: A random, client-generated string, wich will be written to script.txt by the host, to avoid account spoofing (= someone is trying to join the battle under a wrong user-name).",
+      "arguments": [
+        {
+          "name": "battleID",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "scriptPassword\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "LEFTBATTLE",
+      "source": "server",
+      "description": "Sent by the server to all users when a client left a battle (or got disconnected from the server). battleID userName",
+      "arguments": [
+        {
+          "name": "battleID",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "LEAVEBATTLE",
+      "source": "client",
+      "description": "Sent by the client when he leaves a battle. When this command is by the founder of a battle, it notifies that the battle is now closed.",
+      "arguments": [],
+      "examples": [],
+      "response": {
+        "type": "BATTLECLOSED",
+        "description": "If sent by the founder, BATTLECLOSED."
+      }
+    },
+    {
+      "command": "BATTLECLOSED",
+      "source": "server",
+      "description": "Sent to all users to notify that a battle has been closed. battleID",
+      "arguments": [
+        {
+          "name": "battleID",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "UDPSOURCEPORT",
+      "source": "server",
+      "description": "Sent as a response to a client's UDP packet (used with \"hole punching\" NAT traversal technique). Someone who knows more about this should document it! port",
+      "arguments": [
+        {
+          "name": "port",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [
+        "UDPSOURCEPORT 52361"
+      ],
+      "response": null
+    },
+    {
+      "command": "CLIENTIPPORT",
+      "source": "server",
+      "description": "Sent to the battle's host, notifying him about another client's IP address and his public UDP source port. userName ip port",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "ip",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "port",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "HOSTPORT",
+      "source": "server",
+      "description": "Sent by the server to all clients participating in the battle, except for the host, notifying them about the (possibly new) host port. port",
+      "arguments": [
+        {
+          "name": "port",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "UPDATEBATTLEINFO",
+      "source": "server",
+      "description": "Sent by the server to all registered clients, telling them some of the parameters of the battle changed. A battle's internal changes, like starting metal, energy, starting position etc., are sent only to clients participating in the battle (via the SETSCRIPTTAGS command). battleID spectatorCount: Assume that spectator count is 0, if battle type is 0 (normal battle) and 1 if battle type is 1 (battle replay), as the founder of the battle is automatically set as a spectator in that case. locked: A boolean (\"0\" (for false) or \"1\"). Note that when the client creates a battle, the server assumes it is unlocked (by default). The client must make sure it assumes this same default. mapHash: A signed 32-bit integer. See the OPENBATTLE command for more info. mapName",
+      "arguments": [
+        {
+          "name": "battleID",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "spectatorCount",
+          "type": "word",
+          "required": true,
+          "description": "Assume that spectator count is 0, if battle type is 0 (normal battle) and 1 if battle type is 1 (battle replay), as the founder of the battle is automatically set as a spectator in that case."
+        },
+        {
+          "name": "locked",
+          "type": "word",
+          "required": true,
+          "description": "A boolean (\"0\" (for false) or \"1\"). Note that when the client creates a battle, the server assumes it is unlocked (by default). The client must make sure it assumes this same default."
+        },
+        {
+          "name": "mapHash",
+          "type": "word",
+          "required": true,
+          "description": "A signed 32-bit integer. See the OPENBATTLE command for more info."
+        },
+        {
+          "name": "mapName",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "UPDATEBATTLEINFO",
+      "source": "client",
+      "description": "Sent by the founder of the battle, telling the server that some of the \"external\" parameters of the battle changed. spectatorCount locked: A boolean (\"0\" (for false) or \"1\"). Note that when the client creates a battle, the server assumes it is unlocked (by default). The client must make sure it assumes this same default. mapHash: A signed 32-bit integer. See the OPENBATTLE command for more info. mapName: Must NOT contain the file extension!",
+      "arguments": [
+        {
+          "name": "spectatorCount",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "locked",
+          "type": "word",
+          "required": true,
+          "description": "A boolean (\"0\" (for false) or \"1\"). Note that when the client creates a battle, the server assumes it is unlocked (by default). The client must make sure it assumes this same default."
+        },
+        {
+          "name": "mapHash",
+          "type": "word",
+          "required": true,
+          "description": "A signed 32-bit integer. See the OPENBATTLE command for more info."
+        },
+        {
+          "name": "mapName",
+          "type": "sentence",
+          "required": true,
+          "description": "Must NOT contain the file extension!"
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "MYSTATUS",
+      "source": "client",
+      "description": "Sent by a client to inform the server about his changed status. Note: To tell out if a battle is \"in-game\", a client must check the in-game status of the host. status: A signed integer in text form (e.g. \"1234\"). Each bit has its meaning:*b0 = in game (0 - normal, 1 - in game)* b1 = away status (0 - normal, 1 - away)*b2-b4 = rank (see Account class implementation for description of rank) - client is not allowed to change rank bits himself (only server may set them).* b5 = access status (tells us whether this client is a server moderator or not) - client is not allowed to change this bit himself (only server may set them).* b6 = bot mode (0 - normal user, 1 - automated bot). This bit is copied from user's account and can not be changed by the client himself. Bots differ from human players in that they are fully automated and that some anti-flood limitations do not apply to them.",
+      "arguments": [
+        {
+          "name": "status",
+          "type": "word",
+          "required": true,
+          "description": "A signed integer in text form (e.g. \"1234\"). Each bit has its meaning:"
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "CLIENTSTATUS|HOSTPORT",
+        "description": "The status change will be communicated to relevant users via CLIENTSTATUS commands. If a battle founder changes from being not in-game to being in-game, HOSTPORT commands will be sent to users in their battle."
+      }
+    },
+    {
+      "command": "CLIENTSTATUS",
+      "source": "server",
+      "description": "Sent by the server to all registered clients, indicating that a client's status changed. Note that client's status is considered 0 if not indicated otherwise (for example, when you login, the server sends only statuses of those clients whose statuses differ from 0, to save bandwidth). userName status: See the MYSTATUS command for possible values of this parameter.",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "status",
+          "type": "word",
+          "required": true,
+          "description": "See the MYSTATUS command for possible values of this parameter."
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "MYBATTLESTATUS",
+      "source": "client",
+      "description": "Sent by a client to the server, telling him his battle status changed. battleStatus: An integer, but with limited range: 0..2147483647 (use signed int and consider only positive values and zero) This number is sent as text. Each bit has its meaning:*b0 = undefined (reserved for future use)* b1 = ready (0=not ready, 1=ready)*b2..b5 = team no. (from 0 to 15. b2 is LSB, b5 is MSB)* b6..b9 = ally team no. (from 0 to 15. b6 is LSB, b9 is MSB)*b10 = mode (0 = spectator, 1 = normal player)* b11..b17 = handicap (7-bit number. Must be in range 0..100). Note: Only host can change handicap values of the players in the battle (with HANDICAP command). These 7 bits are always ignored in this command. They can only be changed using HANDICAP command.*b18..b21 = reserved for future use (with pre 0.71 versions these bits were used for team color index)* b22..b23 = sync status (0 = unknown, 1 = synced, 2 = unsynced)*b24..b27 = side (e.g.: arm, core, tll, ... Side index can be between 0 and 15, inclusive)* b28..b31 = undefined (reserved for future use) myTeamColor: Should be a 32-bit signed integer in decimal form (e.g. 255 and not FF) where each color channel should occupy 1 byte (e.g. in hexdecimal: $00BBGGRR, B = blue, G = green, R = red). Example: 255 stands for $000000FF.",
+      "arguments": [
+        {
+          "name": "battleStatus",
+          "type": "word",
+          "required": true,
+          "description": "An integer, but with limited range: 0..2147483647 (use signed int and consider only positive values and zero) This number is sent as text. Each bit has its meaning:"
+        },
+        {
+          "name": "myTeamColor",
+          "type": "word",
+          "required": true,
+          "description": "Should be a 32-bit signed integer in decimal form (e.g. 255 and not FF) where each color channel should occupy 1 byte (e.g. in hexdecimal: $00BBGGRR, B = blue, G = green, R = red). Example: 255 stands for $000000FF."
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "CLIENTBATTLESTATUS|UPDATEBATTLEINFO",
+        "description": "The status change will communicated to relevant users via the CLIENTBATTLESTATUS and UPDATEBATTLEINFO commands."
+      }
+    },
+    {
+      "command": "CLIENTBATTLESTATUS",
+      "source": "server",
+      "description": "Sent by the server to users participating in a battle when one of the clients changes his battle status. userName battleStatus: See the MYBATTLESTATUS command for possible values of this argument. teamColor: Uses the same format as the one used with the MYBATTLESTATUS command.",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "battleStatus",
+          "type": "word",
+          "required": true,
+          "description": "See the MYBATTLESTATUS command for possible values of this argument."
+        },
+        {
+          "name": "teamColor",
+          "type": "word",
+          "required": true,
+          "description": "Uses the same format as the one used with the MYBATTLESTATUS command."
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "REQUESTBATTLESTATUS",
+      "source": "server",
+      "description": "Sent by the server to a user which just opened a battle or joined one. Sent after all CLIENTBATTLESTATUS commands for all clients have been sent.",
+      "arguments": [],
+      "examples": [],
+      "response": {
+        "type": "MYBATTLESTATUS",
+        "description": "This command is an invitation for the user with a MYBATTLESTATUS and choose a suitable team, ally-team and color, since the user now knows the battle statuses of other clients."
+      }
+    },
+    {
+      "command": "HANDICAP",
+      "source": "client",
+      "description": "Sent by the founder of the battle when changing a user's handicap value (which is part of that users battle status). Only the founder can change other users handicap values, and that requests from non-founder users will be ignored. userName value: Must be in range \\[0, 100\\] (inclusive).",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "value",
+          "type": "word",
+          "required": true,
+          "description": "Must be in range \\[0, 100\\] (inclusive)."
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "KICKFROMBATTLE",
+      "source": "client",
+      "description": "Sent by the founder of the battle, to tell the server to kick a client from the battle. The server removes the target client from the battle and notifies the target client via FORCEQUITBATTLE command. userName",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "KICKFROMBATTLE",
+      "source": "server",
+      "description": "Sent by the server to notify the battle host that the named user should be kicked from the battle in progress. battleID userName",
+      "arguments": [
+        {
+          "name": "battleID",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "FORCEQUITBATTLE",
+      "source": "server",
+      "description": "Sent to a client that was kicked from their current battle by the battle founder. The client does not need to send LEAVEBATTLE, as removal has already been done by the server. The only purpose of this command is to notify the client that they were kicked. (The client will also recieve a corresponding LEFTBATTLE notification.)",
+      "arguments": [],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "FORCETEAMNO",
+      "source": "client",
+      "description": "Sent by the founder of a battle to change the team number of a user. The server will update the client's battle status automatically. userName teamNo",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "teamNo",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "FORCEALLYNO",
+      "source": "client",
+      "description": "Sent by the founder of a battle to change the ally team number of a user. The server will update the client's battle status automatically. userName teamNo",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "teamNo",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "FORCETEAMCOLOR",
+      "source": "client",
+      "description": "Sent by the founder of a battle to change the team colour of a team. The server will update the client's battle status automatically. userName color: Should be a 32-bit signed integer in decimal form (e.g. 255 and not FF) where each color channel should occupy 1 byte (e.g. in hexdecimal: $00BBGGRR, B = blue, G = green, R = red). Example: 255 stands for $000000FF.",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "color",
+          "type": "word",
+          "required": true,
+          "description": "Should be a 32-bit signed integer in decimal form (e.g. 255 and not FF) where each color channel should occupy 1 byte (e.g. in hexdecimal: $00BBGGRR, B = blue, G = green, R = red). Example: 255 stands for $000000FF."
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "FORCESPECTATORMODE",
+      "source": "client",
+      "description": "Sent by the founder of a battle to force a given user to become a spectator. The server will update the client's battle status automatically. userName",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "DISABLEUNITS",
+      "source": "client",
+      "description": "Sent by the founder of a battle to tell the server that one or more units are now disabled. The server will update the client's battle status automatically. unitName1: Multiple units may follow, but at least one must be present in the arguments list. unitName2 ...",
+      "arguments": [
+        {
+          "name": "unitName1",
+          "type": "word",
+          "required": true,
+          "description": "Multiple units may follow, but at least one must be present in the arguments list."
+        },
+        {
+          "name": "unitName2\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "...\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "DISABLEUNITS",
+      "source": "server",
+      "description": "Sent by the server to all clients in a battle, telling them that some units have been added to disabled units list. Also see the DISABLEUNITS command. unitName1: Multiple units may follow, but at least one must be present in the arguments list. unitName2 ...",
+      "arguments": [
+        {
+          "name": "unitName1",
+          "type": "word",
+          "required": true,
+          "description": "Multiple units may follow, but at least one must be present in the arguments list."
+        },
+        {
+          "name": "unitName2\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "...\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "ENABLEUNITS",
+      "source": "client",
+      "description": "Sent by the founder of a battle to tell the server that one or more units are now enabled. The server will update the client's battle status automatically. unitName1: Multiple units may follow, but at least one must be present in the arguments list. unitName2 ...",
+      "arguments": [
+        {
+          "name": "unitName1",
+          "type": "word",
+          "required": true,
+          "description": "Multiple units may follow, but at least one must be present in the arguments list."
+        },
+        {
+          "name": "unitName2\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "...\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "ENABLEUNITS",
+      "source": "server",
+      "description": "Sent by the server to all clients in a battle, telling them that some units have been added to enabled units list. Also see the DISABLEUNITS command. unitName1: Multiple units may follow, but at least one must be present in the arguments list. unitName2 ...",
+      "arguments": [
+        {
+          "name": "unitName1",
+          "type": "word",
+          "required": true,
+          "description": "Multiple units may follow, but at least one must be present in the arguments list."
+        },
+        {
+          "name": "unitName2\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "...\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "ENABLEALLUNITS",
+      "source": "client",
+      "description": "Sent by the founder of a battle, telling the server that he enabled ALL units and, and is thus clearing the disabled units list.",
+      "arguments": [],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "ENABLEALLUNITS",
+      "source": "server",
+      "description": "Sent by the server to all clients in a battle, telling them that the disabled units list has been cleared.",
+      "arguments": [],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "RING",
+      "source": "client",
+      "description": "Sent to request that a \"ring\" sound to be played to other user. userName",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": {
+        "type": "RING",
+        "description": "See RING."
+      }
+    },
+    {
+      "command": "RING",
+      "source": "server",
+      "description": "Sent to notify a client that another user requested that a \"ring\" sound be played to them. userName",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "ADDBOT",
+      "source": "client",
+      "description": "Allows a client to add a bot to the battle. name battleStatus teamColor: Should be a 32-bit signed integer in decimal form (e.g. 255 and not FF) where each color channel should occupy 1 byte (e.g. in hexdecimal: $00BBGGRR, B = blue, G = green, R = red). ai dll",
+      "arguments": [
+        {
+          "name": "name",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "battleStatus",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "teamColor",
+          "type": "word",
+          "required": true,
+          "description": "Should be a 32-bit signed integer in decimal form (e.g. 255 and not FF) where each color channel should occupy 1 byte (e.g. in hexdecimal: $00BBGGRR, B = blue, G = green, R = red)."
+        },
+        {
+          "name": "ai dll",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "ADDBOT",
+      "source": "server",
+      "description": "Indicates that a client has added a bot to the battle. battleID: helps the client verify that the bot is meant for his battle. name owner battleStatus teamColor: Should be 32-bit signed integer in decimal form (e.g. 255 and not FF) where each color channel should occupy 1 byte (e.g. in hexdecimal: $00BBGGRR, B = blue, G = green, R = red). ai dll",
+      "arguments": [
+        {
+          "name": "battleID",
+          "type": "word",
+          "required": true,
+          "description": "helps the client verify that the bot is meant for his battle."
+        },
+        {
+          "name": "name",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "owner",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "battleStatus",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "teamColor",
+          "type": "word",
+          "required": true,
+          "description": "Should be 32-bit signed integer in decimal form (e.g. 255 and not FF) where each color channel should occupy 1 byte (e.g. in hexdecimal: $00BBGGRR, B = blue, G = green, R = red)."
+        },
+        {
+          "name": "ai dll",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "REMOVEBOT",
+      "source": "client",
+      "description": "Removes a bot from the battle. name",
+      "arguments": [
+        {
+          "name": "name",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "REMOVEBOT",
+      "source": "server",
+      "description": "Indicates that a bot has been removed from the battle. battleID: helps the client verify that the bot is meant for his battle. name",
+      "arguments": [
+        {
+          "name": "battleID",
+          "type": "word",
+          "required": true,
+          "description": "helps the client verify that the bot is meant for his battle."
+        },
+        {
+          "name": "name",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "UPDATEBOT",
+      "source": "client",
+      "description": "Sent by a client when he is trying to update the status of a bot. Only the bot owner and battle host may update a bot's status. name battleStatus: Similar to that of the normal client's, see MYBATTLESTATUS for more info. teamColor: Should be a 32-bit signed integer in decimal form (e.g. 255 and not FF) where each color channel should occupy 1 byte (e.g. in hexdecimal: $00BBGGRR, B = blue, G = green, R = red).",
+      "arguments": [
+        {
+          "name": "name",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "battleStatus",
+          "type": "word",
+          "required": true,
+          "description": "Similar to that of the normal client's, see MYBATTLESTATUS for more info."
+        },
+        {
+          "name": "teamColor",
+          "type": "word",
+          "required": true,
+          "description": "Should be a 32-bit signed integer in decimal form (e.g. 255 and not FF) where each color channel should occupy 1 byte (e.g. in hexdecimal: $00BBGGRR, B = blue, G = green, R = red)."
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "UPDATEBOT",
+      "source": "server",
+      "description": "Sent by the server notifying a client in the battle that one of the bots just got his status updated. Also see the UPDATEBOT command. battleID: helps the client verify that the bot is meant for his battle. name battleStatus: Similar to that of the normal client's, see MYSTATUS for more info. teamColor: Should be a 32-bit signed integer in decimal form (e.g. 255 and not FF) where each color channel should occupy 1 byte (e.g. in hexdecimal: $00BBGGRR, B = blue, G = green, R = red).",
+      "arguments": [
+        {
+          "name": "battleID",
+          "type": "word",
+          "required": true,
+          "description": "helps the client verify that the bot is meant for his battle."
+        },
+        {
+          "name": "name",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "battleStatus",
+          "type": "word",
+          "required": true,
+          "description": "Similar to that of the normal client's, see MYSTATUS for more info."
+        },
+        {
+          "name": "teamColor",
+          "type": "word",
+          "required": true,
+          "description": "Should be a 32-bit signed integer in decimal form (e.g. 255 and not FF) where each color channel should occupy 1 byte (e.g. in hexdecimal: $00BBGGRR, B = blue, G = green, R = red)."
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "ADDSTARTRECT",
+      "source": "client",
+      "description": "Adds a start rectangle for the 'allyno' ally team. Only the battle foudner may use this command. See lobby client implementations and Spring docs for more info on this one. \"left\", \"top\", \"right\" and \"bottom\" refer to a virtual rectangle that is 200x200 in size, where coordinates should be in the interval \\[0, 200\\]. allyNo left top right bottom",
+      "arguments": [
+        {
+          "name": "allyNo",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "left",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "top",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "right",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "bottom",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "ADDSTARTRECT",
+      "source": "server",
+      "description": "Sent by the server to clients participating in a battle (except for the host). See lobby client implementations and Spring docs for more info on this one. \"left\", \"top\", \"right\" and \"bottom\" refer to a virtual rectangle that is 200x200 in size, where coordinates should be in the interval \\[0, 200\\]. allyNo left top right bottom",
+      "arguments": [
+        {
+          "name": "allyNo",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "left",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "top",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "right",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "bottom",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "REMOVESTARTRECT",
+      "source": "client",
+      "description": "Removing a start rectangle the for 'allyNo' ally team. Sent by the host of the battle. See client implementations and Spring docs for more info on this one. allyNo",
+      "arguments": [
+        {
+          "name": "allyNo",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "REMOVESTARTRECT",
+      "source": "server",
+      "description": "Removing a start rectangle the for 'allyNo' ally team. Sent to clients participating in a battle (except for the host). Also see ADDSTARTRECT command. allyNo",
+      "arguments": [
+        {
+          "name": "allyNo",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "SETSCRIPTTAGS",
+      "source": "client",
+      "description": "Sent by a client (battle host), to inform other clients about current battle configuration (start positions type, mod options, map options...). Only the battle host itself needs to write the corresponding script tags into script.txt, other battle clients should merely use them for display purposes. The \\[pair\\] format is \"key=value can have spaces\". Keys may not contain spaces, and are expected to use the '/' character to separate tables, see example:*SETSCRIPTTAGS game/startmetal=1000* SETSCRIPTTAGS game/startenergy=1000*SETSCRIPTTAGS game/maxunits=500* SETSCRIPTTAGS game/startpostype=1*SETSCRIPTTAGS game/gamemode=0* SETSCRIPTTAGS game/limitdgun=1*SETSCRIPTTAGS game/diminishingmms=0* SETSCRIPTTAGS game/ghostedbuildings=1Though in reality, all tags are joined together in a single command. Note that when specifying multiple key+value pairs, they must be separated by TAB characters. All keys are made lowercase by the server. See the examples bellow. pair1 pair2 pair3 ...",
+      "arguments": [
+        {
+          "name": "pair1",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "{pair2}\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "{pair3}\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "{...}\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [
+        "SETSCRIPTTAGS game/modoptions/test=true",
+        "SETSCRIPTTAGS game/startmetal=1000\\[TAB\\]game/startenergy=1000"
+      ],
+      "response": null
+    },
+    {
+      "command": "SETSCRIPTTAGS",
+      "source": "server",
+      "description": "Relayed from battle host's SETSCRIPTTAGS message. A client lobby program must process these tags and apply them accordingly to the GUI presenting current battle configuration to the player. All keys are made lowercase by the server. pair1 pair2 pair3 ...",
+      "arguments": [
+        {
+          "name": "pair1",
+          "type": "sentence",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "{pair2}\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "{pair3}\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "{...}\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [
+        "SETSCRIPTTAGS game/modoptions/test=true",
+        "SETSCRIPTTAGS game/startmetal=1000\\[TAB\\]game/startenergy=1000"
+      ],
+      "response": null
+    },
+    {
+      "command": "REMOVESCRIPTTAGS",
+      "source": "client",
+      "description": "Sent by a client (battle host), to inform other clients that a battle configuration setting has been removed (this is mainly usefull when changing map with map options). key1 key2 key3 ...",
+      "arguments": [
+        {
+          "name": "key1",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "key2\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "key3\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "...\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [
+        "REMOVESCRIPTTAGS game/modoptions/test1 game/modoptions/test2"
+      ],
+      "response": null
+    },
+    {
+      "command": "REMOVESCRIPTTAGS",
+      "source": "server",
+      "description": "Relayed from battle host's REMOVESCRIPTTAGS message. A client lobby program has to remove these from the GUI presenting current battle configuration to the player. key1 key2 key3 ...",
+      "arguments": [
+        {
+          "name": "key1",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "key2\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "key3\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "...\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [
+        "REMOVESCRIPTTAGS game/modoptions/test1 game/modoptions/test2"
+      ],
+      "response": null
+    },
+    {
+      "command": "IGNORE",
+      "source": "client",
+      "description": "Tells the server to add the user to the client's ignore list. Doing this will prevent any SAID\\*, SAY\\* and RING commands to be received from the ignored user. This command uses named arguments, see \"Named Arguments\" chapter of the Intro section. userName=value: The username of the user to be ignored. reason=value: Reason for the ignore.",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "value",
+          "type": "word",
+          "required": true,
+          "description": "The username of the user to be ignored."
+        },
+        {
+          "name": "{reason=value}\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [
+        "IGNORE userName=joereason=Really annoying, keeps pestering me to play DSD.",
+        "IGNORE userName=anotherdsdguy"
+      ],
+      "response": null
+    },
+    {
+      "command": "IGNORE",
+      "source": "server",
+      "description": "Tells the client that the user has been ignored (usually as a result of the IGNORE command sent by the client, but other sources are also possible). Also see the IGNORE command. This command uses named arguments, see \"Named Arguments\" chapter of the Intro section. userName=value: The username of the ignored user. reason=value: Reason for the ignore.",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "value",
+          "type": "word",
+          "required": true,
+          "description": "The username of the ignored user."
+        },
+        {
+          "name": "{reason=value}\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "UNIGNORE",
+      "source": "client",
+      "description": "Tells the server to remove the user to the client's ignore list. Also see the IGNORE command. This command uses named arguments, see \"Named Arguments\" chapter of the Intro section. userName=value: The username of the user to be unignored.",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "value",
+          "type": "word",
+          "required": true,
+          "description": "The username of the user to be unignored."
+        }
+      ],
+      "examples": [
+        "UNIGNORE userName=joe"
+      ],
+      "response": null
+    },
+    {
+      "command": "UNIGNORE",
+      "source": "server",
+      "description": "Tells the client that the user has been unignored (usually as a result of the UNIGNORE command sent by the client, but other sources are also possible). Also see the UNIGNORE command. This command uses named arguments, see \"Named Arguments\" chapter of the Intro section. userName=value: The username of the unignored user.",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "value",
+          "type": "word",
+          "required": true,
+          "description": "The username of the unignored user."
+        }
+      ],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "IGNORELIST",
+      "source": "client",
+      "description": "Sent by a client when requesting its ignore list.",
+      "arguments": [],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "IGNORELISTBEGIN",
+      "source": "server",
+      "description": "Sent by the server when sending the ignore list to the client.",
+      "arguments": [],
+      "examples": [],
+      "response": {
+        "type": "IGNORELIST|IGNORELISTEND",
+        "description": "0 or more IGNORELIST commands and finally a IGNORELISTEND command."
+      }
+    },
+    {
+      "command": "IGNORELIST",
+      "source": "server",
+      "description": "Multiple commands of this kind may be sent after a IGNORELISTBEGIN command (or none, if the ignore list is empty). This command uses named arguments, see \"Named Arguments\" chapter of the Intro section. userName=value: The username of the user to be ignored. reason=value: Reason for the ignore.",
+      "arguments": [
+        {
+          "name": "userName",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "value",
+          "type": "word",
+          "required": true,
+          "description": "The username of the user to be ignored."
+        },
+        {
+          "name": "{reason=value}\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [
+        "IGNORE userName=joereason=Really annoying, keeps pestering me to play DSD.",
+        "IGNORE userName=anotherdsdguy"
+      ],
+      "response": null
+    },
+    {
+      "command": "IGNORELISTEND",
+      "source": "server",
+      "description": "Sent by the server after it has finished sending the ignore list for a client. Also see the IGNORELIST and IGNORELISTBEGIN commands.",
+      "arguments": [],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "LISTCOMPFLAGS",
+      "source": "client",
+      "description": "A client may send this command after it has received TASSERVER to query the server for supported comp-flags that may be specified on LOGIN.",
+      "arguments": [],
+      "examples": [],
+      "response": {
+        "type": "COMPFLAGS",
+        "description": "See COMPFLAGS."
+      }
+    },
+    {
+      "command": "COMPFLAGS",
+      "source": "server",
+      "description": "Sent as a response to a LISTCOMPFLAGS command. The server sends a list of supported comp-flags that may be specified by the client on LOGIN. compFlag1 compFlag2 ...",
+      "arguments": [
+        {
+          "name": "compFlag1\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "compFlag2\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        },
+        {
+          "name": "...\\",
+          "type": "word",
+          "required": false,
+          "description": null
+        }
+      ],
+      "examples": [
+        "COMPFLAGS a b",
+        "COMPFLAGS a b sp"
+      ],
+      "response": null
+    },
+    {
+      "command": "REDIRECT",
+      "source": "server",
+      "description": "Sent by the server when running in \"redirection mode\". When a client connects, the server will send him only this message and disconnect the socket immediately. The client should connect to the given IP and port, in that case. This command may be useful when the official server ip/address changes, so that clients are automatically redirected to the new one. ip port",
+      "arguments": [
+        {
+          "name": "ip",
+          "type": "word",
+          "required": true,
+          "description": null
+        },
+        {
+          "name": "port",
+          "type": "word",
+          "required": true,
+          "description": null
+        }
+      ],
+      "examples": [
+        "REDIRECT 87.96.164.14 8200"
+      ],
+      "response": null
+    },
+    {
+      "command": "FAILED",
+      "source": "server",
+      "description": "A command used to notify that a command sent to the server has either failed, been denied, or otherwise cannot be completed. This normally is used as a generic error command, to inform lobby/client developers that they have not used the protocol correctly.",
+      "arguments": [],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "PROMOTE",
+      "source": "client",
+      "description": "This command posts a message in particular channels, calling for players. It is currently the (only) test case for a client command used JSON format.",
+      "arguments": [],
+      "examples": [],
+      "response": null
+    },
+    {
+      "command": "JSON",
+      "source": "server",
+      "description": "A command used to send information to clients in JSON format. (Currently rarely used.)",
+      "arguments": [],
+      "examples": [],
+      "response": null
+    }
+  ]
+}
