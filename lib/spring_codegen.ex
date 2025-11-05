@@ -15,7 +15,7 @@ defmodule SpringCodegen do
   end
 
   def generate(argv) when is_list(argv) do
-    {_, opts} = OptionParser.parse!(argv, strict: [path: :string]) |> dbg()
+    {_, opts} = OptionParser.parse!(argv, strict: [path: :string])
     path = opts[:path]
 
     with {:ok, protocol} <- fetch_protocol() do

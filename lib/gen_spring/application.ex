@@ -5,16 +5,31 @@ defmodule GenSpring.Application do
 
   use Application
 
-  @impl true
+  @impl Application
   def start(_type, _args) do
-    children = [
-      # Starts a worker by calling: GenSpring.Worker.start_link(arg)
-      {ThousandIsland, port: 1234, handler_module: GenSpring.Communication.Handler}
-    ]
+    Supervisor.start_link(children(), strategy: :one_for_one, name: GenSpring.Supervisor)
+  end
 
-    # See https://hexdocs.pm/elixir/Supervisor.html
-    # for other strategies and supported options
-    opts = [strategy: :one_for_one, name: GenSpring.Supervisor]
-    Supervisor.start_link(children, opts)
+  def children() do
+    [
+      buffer_registry_child_spec(),
+      buffer_supervisor_child_spec(),
+      transport_child_spec()
+    ]
+  end
+
+  def transport_child_spec(options \\ []) do
+    default_options = [port: 1234, handler_module: GenSpring.Communication.Transport]
+    {ThousandIsland, Keyword.merge(default_options, options)}
+  end
+
+  def buffer_supervisor_child_spec(options \\ []) do
+    default_options = [name: GenSpring.BufferSupervisor, strategy: :one_for_one]
+    {DynamicSupervisor, Keyword.merge(default_options, options)}
+  end
+
+  def buffer_registry_child_spec(options \\ []) do
+    default_options = [keys: :unique, name: GenSpring.BufferRegistry]
+    {Registry, Keyword.merge(default_options, options)}
   end
 end

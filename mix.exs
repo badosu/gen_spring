@@ -7,7 +7,9 @@ defmodule GenSpring.MixProject do
       version: "0.1.0",
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      elixirc_paths: elixirc_paths(Mix.env()),
+      aliases: [test: "test --no-start"]
     ]
   end
 
@@ -27,6 +29,14 @@ defmodule GenSpring.MixProject do
       {:nimble_options, "~> 1.1"},
       {:thousand_island, "~> 1.4"},
       {:typed_struct, "~> 0.3"}
+    ] ++ test_deps()
+  end
+
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
+
+  defp test_deps do
+    [
     ]
   end
 end
