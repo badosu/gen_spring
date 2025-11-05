@@ -19,6 +19,8 @@ defmodule GenSpring.Communication.Transport do
     {:continue, Map.put(state, :msg_buffer, msg_buffer)}
   end
 
+  defdelegate send(transport, message), to: ThousandIsland.Socket
+
   defp get_buffer_and_messages("" = _msg_buffer, data) do
     segments = String.split(data, "\n") |> Enum.reject(&(&1 == ""))
 
