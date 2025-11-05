@@ -37,6 +37,7 @@ defmodule GenSpring.Communication.Buffer do
 
   @impl GenServer
   def handle_cast({:incoming, message}, state) do
+    {:ok, request} = GenSpring.Requests.parse_incoming(message)
     {:noreply, state}
   end
 end

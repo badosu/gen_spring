@@ -12,7 +12,9 @@ defmodule GenSpring do
       :world
 
   """
-  def hello do
-    :world
+  def request_server(pid, request) do
+    from = self()
+    message = {:request, from, request}
+    send(pid, message)
   end
 end
