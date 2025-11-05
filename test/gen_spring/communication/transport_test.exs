@@ -1,58 +1,38 @@
 defmodule GenSpring.Communication.TransportTest do
-  alias GenSpring.Communication.Buffer
   use ExUnit.Case
+  use Mimic
 
-  require TraceHelper
+  alias GenSpring.Communication.Buffer
+  alias GenSpring.Communication.Transport
 
-  setup(options) do
-    start_link_supervised!(GenSpring.Application.buffer_supervisor_child_spec())
+  describe "&handle_connection/2" do
+    test "connects to a buffer" do
+      expect(Buffer, :connect, fn :socket, :state -> {:ok, :buffer} end)
 
-    [tracer: TraceHelper.setup(options), transport: start_transport()]
+      assert {:continue, state} = Transport.handle_connection(:socket, :state)
+      assert match?(%{msg_buffer: "", buffer: :buffer}, state)
+    end
   end
 
-  test "connects to a buffer", options do
-    port = options.transport.port
-    :gen_tcp.connect(:localhost, port, active: false)
+  describe "&handle_data/2" do
+    test "sends incoming messages to the buffer" do
+      Buffer
+      |> expect(:incoming, fn :buffer, "Hello World" -> nil end)
+      |> expect(:incoming, fn :buffer, "Merry" -> nil end)
+      |> expect(:incoming, fn :buffer, "Christmas" -> nil end)
 
-    SupervisorHelper.await_child!(GenSpring.BufferSupervisor)
-  end
+      state = %{msg_buffer: "", buffer: :buffer}
 
-  @tag :trace
-  test "greets the world", options do
-    tracer = Map.fetch!(options, :tracer)
-    transport = Map.fetch!(options, :transport)
+      result = Transport.handle_data("Hello", :socket, state)
+      assert {:continue, state} = result
+      result = Transport.handle_data(" Wor", :socket, state)
+      assert {:continue, state} = result
+      result = Transport.handle_data("ld\nMerry\n", :socket, state)
+      assert {:continue, state} = result
+      result = Transport.handle_data("Christmas\n...", :socket, state)
+      assert {:continue, state} = result
 
-    {:ok, client} = :gen_tcp.connect(:localhost, transport.port, active: false)
-
-    buffer_pid = SupervisorHelper.await_child!(GenSpring.BufferSupervisor) |> elem(1)
-
-    TraceHelper.trace_calls(tracer, buffer_pid, Buffer)
-
-    :gen_tcp.send(client, "Hello")
-    :gen_tcp.send(client, " Wor")
-    :gen_tcp.send(client, "ld\nMerry\n")
-    :gen_tcp.send(client, "Christmas\n")
-
-    assert_incoming(tracer, "Hello World")
-    assert_incoming(tracer, "Merry")
-    assert_incoming(tracer, "Christmas")
-  end
-
-  defp assert_incoming(tracer, message) do
-    TraceHelper.assert_traced_call(
-      tracer,
-      {Buffer, :handle_cast},
-      [{:incoming, ^message}, _opts]
-    )
-  end
-
-  defp start_transport(server_args \\ []) do
-    server_args = Keyword.merge([port: 0, num_acceptors: 1], server_args)
-    child_spec = GenSpring.Application.transport_child_spec(server_args)
-
-    server_pid = start_link_supervised!(child_spec)
-    {:ok, {_ip, port}} = ThousandIsland.listener_info(server_pid)
-
-    %{port: port, server_pid: server_pid}
+      assert match?(%{msg_buffer: "...", buffer: :buffer}, state)
+    end
   end
 end

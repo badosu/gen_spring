@@ -37,6 +37,7 @@ defmodule GenSpring.MixProject do
 
   defp test_deps do
     [
+      {:mimic, "~> 2.0", only: :test}
     ]
   end
 end

@@ -2,11 +2,10 @@ defmodule GenSpring.Communication.Buffer do
   use GenServer
 
   def connect(socket, _state) do
-    {:ok, _pid} =
-      DynamicSupervisor.start_child(
-        GenSpring.BufferSupervisor,
-        {__MODULE__, name: MyBuffer, transport: socket}
-      )
+    DynamicSupervisor.start_child(
+      GenSpring.BufferSupervisor,
+      {__MODULE__, name: MyBuffer, transport: socket}
+    )
   end
 
   def start_link(opts) do
