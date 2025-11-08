@@ -2,14 +2,20 @@ defmodule GenSpring.Communication.TransportTest do
   use ExUnit.Case
   use Mimic
 
-  alias GenSpring.Communication.Buffer
+  alias GenSpring.Buffer
   alias GenSpring.Communication.Transport
 
   describe "&handle_connection/2" do
     test "connects to a buffer" do
-      expect(Buffer, :connect, fn :socket, :state -> {:ok, :buffer} end)
+      module_opts = {MySpringServer, my: :opts}
 
-      assert {:continue, state} = Transport.handle_connection(:socket, :state)
+      expect(Buffer, :start_link, fn opts ->
+        assert Keyword.fetch!(opts, :module) == module_opts
+
+        {:ok, :buffer}
+      end)
+
+      assert {:continue, state} = Transport.handle_connection(:socket, module: module_opts)
       assert match?(%{msg_buffer: "", buffer: :buffer}, state)
     end
   end
@@ -17,9 +23,16 @@ defmodule GenSpring.Communication.TransportTest do
   describe "&handle_data/2" do
     test "sends incoming messages to the buffer" do
       Buffer
-      |> expect(:incoming, fn :buffer, "Hello World" -> nil end)
-      |> expect(:incoming, fn :buffer, "Merry" -> nil end)
-      |> expect(:incoming, fn :buffer, "Christmas" -> nil end)
+      |> expect(:push_messages, fn :buffer, messages ->
+        assert messages == ["Hello World", "Merry"]
+
+        :ok
+      end)
+      |> expect(:push_messages, fn :buffer, messages ->
+        assert messages == ["Christmas"]
+
+        :ok
+      end)
 
       state = %{msg_buffer: "", buffer: :buffer}
 

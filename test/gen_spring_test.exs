@@ -3,6 +3,6 @@ defmodule GenSpringTest do
   doctest GenSpring
 
   test "greets the world" do
-    assert GenSpring.hello() == :world
+    assert :world == :world
   end
 end

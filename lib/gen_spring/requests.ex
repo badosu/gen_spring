@@ -1,4 +1,26 @@
 defmodule GenSpring.Requests do
+  defmodule ParseError do
+    defexception [:message, :request]
+
+    @impl Exception
+    def exception(request) do
+      message = "Failed to parse request from client"
+
+      %__MODULE__{message: message, request: request}
+    end
+  end
+
+  defmodule EncodeError do
+    defexception [:message, :request]
+
+    @impl Exception
+    def exception(request) do
+      message = "Invalid request provided"
+
+      %__MODULE__{message: message, request: request}
+    end
+  end
+
   def parse(message) when is_binary(message) do
     [head | sentences] = String.split(message, "\t")
     [method | words] = String.split(head, " ")
@@ -10,7 +32,7 @@ defmodule GenSpring.Requests do
     %{method: method, words: words, sentences: sentences}
   end
 
-  def parse_incoming(_message) do
+  def decode(_message) do
     {:ok,
      %{
        battle_id: "1234",
@@ -30,5 +52,9 @@ defmodule GenSpring.Requests do
        game_name: "Some Game V0.0.1",
        channel: "__battle__1234"
      }}
+  end
+
+  def encode(_request) do
+    {:ok, "Message\n"}
   end
 end
