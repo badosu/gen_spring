@@ -1,5 +1,5 @@
 defmodule GenSpring.BufferTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   use Mimic
 
   alias GenSpring.Requests
@@ -7,33 +7,30 @@ defmodule GenSpring.BufferTest do
   alias ThousandIsland.Socket
 
   describe "&init/1" do
-    defmodule MySpringServer do
-      use GenServer
-
-      @impl true
-      def init(opts) do
-        assert opts == [my: :opts]
-
-        {:ok, %{}}
-      end
-    end
-
-    test "when no server passed links to a new GenSpring instance" do
+    test "links to a new GenSpring instance" do
       module_opts = {MySpringServer, my: :opts}
+      me = self()
+
+      GenSpring
+      |> expect(:start_link, fn opts ->
+        assert Keyword.fetch!(opts, :buffer) == me
+        assert Keyword.fetch!(opts, :module) == module_opts
+
+        {:ok, me}
+      end)
 
       {:ok, state} = Buffer.init(module: module_opts, transport: :transport)
 
-      assert match?(%{server: _, transport: :transport}, state)
-
-      server_info = Process.info(state.server)
-
-      assert match?({GenSpring, _, _}, Keyword.get(server_info, :current_function))
+      assert %{server: ^me, transport: :transport} = state
     end
   end
 
   describe "&push_messages/2" do
     test "sends requests to the server" do
-      buffer = start_link_supervised!({Buffer, transport: :transport, server: self()})
+      buffer_name = TestBuffer
+
+      buffer =
+        start_link_supervised!({Buffer, transport: :transport, server: self(), name: buffer_name})
 
       allow(Requests, self(), buffer)
 
@@ -54,20 +51,21 @@ defmodule GenSpring.BufferTest do
         {:ok, request_2}
       end)
 
-      Buffer.push_messages(buffer, [message_1, message_2])
+      assert Buffer.push_messages(buffer, [message_1, message_2]) == :ok
 
       assert_receive {:request, ^request_1}
       assert_receive {:request, ^request_2}
       refute_receive _any
 
-      %{requests: requests, messages: messages} = Buffer.dump(buffer)
+      buffer_state = :sys.get_state(buffer)
 
-      assert :queue.is_empty(requests)
-      assert :queue.is_empty(messages)
+      assert :queue.is_empty(buffer_state.requests)
+      assert :queue.is_empty(buffer_state.messages)
     end
 
     test "sends errors when message is malformed" do
-      buffer = start_link_supervised!({Buffer, transport: :transport, server: self()})
+      buffer =
+        start_link_supervised!({Buffer, transport: :transport, server: self()})
 
       allow(Requests, self(), buffer)
 
@@ -86,10 +84,10 @@ defmodule GenSpring.BufferTest do
       assert_receive {:error, ^request_1}
       refute_receive _any
 
-      %{requests: requests, messages: messages} = Buffer.dump(buffer)
+      buffer_state = :sys.get_state(buffer)
 
-      assert :queue.is_empty(requests)
-      assert :queue.is_empty(messages)
+      assert :queue.is_empty(buffer_state.requests)
+      assert :queue.is_empty(buffer_state.messages)
     end
   end
 
@@ -99,8 +97,9 @@ defmodule GenSpring.BufferTest do
       buffer = start_link_supervised!({Buffer, transport: transport, server: self()})
 
       allow(Requests, self(), buffer)
+      allow(Socket, self(), buffer)
 
-      message_1 = "message_1\n"
+      message_1 = "message_1"
       request_1 = %{request: :one}
 
       Requests
@@ -110,9 +109,10 @@ defmodule GenSpring.BufferTest do
         {:ok, message_1}
       end)
 
-      expect(Socket, :send, fn socket, data ->
+      Socket
+      |> expect(:send, fn socket, data ->
         assert socket == transport
-        assert data == message_1
+        assert data == "#{message_1}\n"
 
         :ok
       end)
@@ -120,31 +120,52 @@ defmodule GenSpring.BufferTest do
       assert :ok == Buffer.send_request(buffer, request_1)
     end
 
-    test "sends errors when message is malformed" do
-      buffer = start_link_supervised!({Buffer, transport: :transport, server: self()})
+    test "returns encode errors" do
+      transport = :transport
+      buffer = start_link_supervised!({Buffer, transport: transport, server: self()})
 
       allow(Requests, self(), buffer)
-      allow(ThousandIsland.Socket, self(), buffer)
 
-      message_1 = "message_1"
-      request_1 = Requests.ParseError.exception(message_1)
+      request_1 = %{request: :one}
+      error_1 = Requests.EncodeError.exception(request_1)
 
       Requests
-      |> expect(:decode, fn incoming_message ->
-        assert incoming_message == message_1
+      |> expect(:encode, fn outgoing_request ->
+        assert outgoing_request == request_1
 
-        {:error, request_1}
+        {:error, error_1}
       end)
 
-      Buffer.push_messages(buffer, [message_1])
+      assert {:error, error_1} == Buffer.send_request(buffer, request_1)
+    end
 
-      assert_receive {:error, ^request_1}
-      refute_receive _any
+    test "returns transport errors" do
+      transport = :transport
+      buffer = start_link_supervised!({Buffer, transport: transport, server: self()})
 
-      %{requests: requests, messages: messages} = Buffer.dump(buffer)
+      allow(Requests, self(), buffer)
+      allow(Socket, self(), buffer)
 
-      assert :queue.is_empty(requests)
-      assert :queue.is_empty(messages)
+      request_1 = %{request: :one}
+      message_1 = "message_1"
+
+      Requests
+      |> expect(:encode, fn outgoing_request ->
+        assert outgoing_request == request_1
+
+        {:ok, message_1}
+      end)
+
+      Socket
+      |> expect(:send, fn socket, data ->
+        assert socket == transport
+        assert data == "message_1\n"
+
+        {:error, :closed}
+      end)
+
+      assert {:error, Buffer.TransportError.exception(:closed)} ==
+               Buffer.send_request(buffer, request_1)
     end
   end
 end

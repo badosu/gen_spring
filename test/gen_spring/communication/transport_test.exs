@@ -1,5 +1,5 @@
 defmodule GenSpring.Communication.TransportTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   use Mimic
 
   alias GenSpring.Buffer
