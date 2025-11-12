@@ -1,5 +1,6 @@
 defmodule GenSpring.Communication.Transport do
   use ThousandIsland.Handler
+
   alias GenSpring.Buffer
 
   @impl ThousandIsland.Handler
@@ -23,8 +24,16 @@ defmodule GenSpring.Communication.Transport do
 
   @impl ThousandIsland.Handler
   def handle_close(_socket, state) do
-    Buffer.stop(state.buffer, :closed)
+    Buffer.close(state.buffer, :closed)
   end
+
+  # NOTE: When the connection is closed client side (reason = :closed), we
+  # don't need to stop the transport
+  def close(_transport, :closed),
+    do: :ok
+
+  def close(transport, reason),
+    do: GenServer.stop(transport, {:shutdown, reason})
 
   defdelegate send(transport, message), to: ThousandIsland.Socket
 

@@ -1,51 +1,112 @@
 defmodule GenSpringTest do
   use ExUnit.Case, async: true
 
-  test "implements the OTP behavior" do
-    defmodule TestSpringServer do
-      def init(opts) do
-        {:ok, %{initial: :state}}
+  describe "OTP" do
+    defmodule TestSpringServer1 do
+      use GenSpring
+
+      @impl GenSpring
+      def init(_buffer, _opts), do: {:ok, %{initial: :state}}
+
+      @impl true
+      def handle_request(_request, _buffer, state), do: {:noreply, state}
+
+      @impl true
+      def terminate(reason, state) do
+        dbg()
+        send(state.buffer, {:did_shut_down, reason})
       end
     end
 
-    {:ok, server} = GenSpring.start_link(buffer: self(), module: {TestSpringServer, []})
+    test "implements the :sys behavior" do
+      {:ok, server} = GenSpring.start_link(buffer: self(), module: {TestSpringServer1, []})
 
-    assert :ok == :sys.suspend(server)
-    assert :ok == :sys.resume(server)
+      assert :ok == :sys.suspend(server)
+      assert :ok == :sys.resume(server)
 
-    assert match?(
-             %{mod: TestSpringServer, state: %{initial: :state}},
-             :sys.get_state(server)
-           )
+      assert match?(
+               %{module: TestSpringServer1, state: %{initial: :state}},
+               :sys.get_state(server)
+             )
 
-    replaced_state =
-      :sys.replace_state(server, fn spring -> put_in(spring.state, %{new: :state}) end)
+      replaced_state =
+        :sys.replace_state(server, fn spring -> put_in(spring.state, %{new: :state}) end)
 
-    assert match?(%{server_state: %{new: :state}}, replaced_state)
-    assert match?(^replaced_state, :sys.get_state(server))
+      assert match?(%{state: %{new: :state}}, replaced_state)
+      assert match?(^replaced_state, :sys.get_state(server))
+
+      dbg(server)
+      Process.info(server) |> dbg()
+      Process.flag(:trap_exit, true)
+
+      :sys.terminate(server, :some_reason)
+
+      assert_receive {:did_shut_down, :normal}, 100
+    end
   end
 
-  test "" do
-    defmodule TestSpringServer do
-      def init(opts) do
-        {:ok, %{initial: :state}}
+  describe "callback init/2" do
+    defmodule TestSpringServer3 do
+      use GenSpring
+
+      @impl GenSpring
+      def init(_buffer, _opts) do
+        {:error, :woops}
+      end
+
+      @impl GenSpring
+      def handle_request(request, _buffer, %{requests: requests} = state) do
+        {:noreply, Map.put(state, :requests, requests ++ [request.name])}
+      end
+
+      @impl GenSpring
+      def terminate(reason, state) do
+        dbg({reason, state})
       end
     end
 
-    {:ok, server} = GenSpring.start_link(buffer: self(), module: {TestSpringServer, []})
+    test "returning {:error, error} shuts down" do
+      dbg(Process.info(self()))
 
-    assert :ok == :sys.suspend(server)
-    assert :ok == :sys.resume(server)
+      assert match?(
+               {:error,
+                %GenSpring.InitError{
+                  reason: {:error, :woops},
+                  module_opts: [],
+                  module: TestSpringServer3
+                }},
+               GenSpring.start_link(buffer: self(), module: {TestSpringServer3, []})
+             )
+    end
+  end
 
-    assert match?(
-             %{mod: TestSpringServer, state: %{initial: :state}},
-             :sys.get_state(server)
-           )
+  describe "" do
+    defmodule TestSpringServer2 do
+      use GenSpring
 
-    replaced_state =
-      :sys.replace_state(server, fn spring -> put_in(spring.state, %{new: :state}) end)
+      @impl GenSpring
+      def init(_buffer, _opts) do
+        {:ok, %{requests: []}}
+      end
 
-    assert match?(%{server_state: %{new: :state}}, replaced_state)
-    assert match?(^replaced_state, :sys.get_state(server))
+      @impl GenSpring
+      def handle_request(request, _buffer, %{requests: requests} = state) do
+        {:noreply, Map.put(state, :requests, requests ++ [request.name])}
+      end
+    end
+
+    test "" do
+      {:ok, server} = GenSpring.start_link(buffer: self(), module: {TestSpringServer2, []})
+
+      assert_receive {:"$gen_cast", :pop_request}
+      refute_receive _
+
+      send(server, {:request, %{name: :req1}})
+
+      assert match?(
+               %{state: %{requests: [:req1]}},
+               :sys.get_state(server)
+             )
+    end
   end
 end

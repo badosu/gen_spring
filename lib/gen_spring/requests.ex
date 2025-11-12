@@ -1,24 +1,22 @@
 defmodule GenSpring.Requests do
   defmodule ParseError do
-    defexception [:message, :request]
+    defexception [:message]
 
     @impl Exception
-    def exception(request) do
-      message = "Failed to parse request from client"
+    def exception(message), do: %__MODULE__{message: message}
 
-      %__MODULE__{message: message, request: request}
-    end
+    @impl Exception
+    def message(_parse_error), do: "Failed to decode message from client"
   end
 
   defmodule EncodeError do
-    defexception [:message, :request, :index]
+    defexception [:request]
 
     @impl Exception
-    def exception(request, index \\ nil) do
-      message = "Invalid request provided"
+    def exception(request), do: %__MODULE__{request: request}
 
-      %__MODULE__{message: message, request: request, index: index}
-    end
+    @impl Exception
+    def message(_parse_error), do: "Failed to encode request from server"
   end
 
   def parse(message) when is_binary(message) do
@@ -52,6 +50,10 @@ defmodule GenSpring.Requests do
        game_name: "Some Game V0.0.1",
        channel: "__battle__1234"
      }}
+  end
+
+  def encode(%{errored: :request} = request) do
+    {:error, __MODULE__.EncodeError.exception(request)}
   end
 
   def encode(_request) do

@@ -1,17 +1,15 @@
 defmodule GenSpring.InitError do
-  defexception [:message, :reason, :module_opts, :module]
+  defexception [:reason, :module_opts, :module]
 
-  @impl true
-  def message(opts) do
-    module_name = opts |> Keyword.fetch!(:module) |> Macro.to_string()
+  @impl Exception
+  def message(init_error),
+    do: "GenSpring server #{inspect(init_error.module)} failed to initialize"
 
+  def exception(spring, reason) do
     fields =
-      opts
-      |> Keyword.take([:reason, :module_opts, :module])
-      |> Map.put(
-        :message,
-        "GenSpring server #{module_name} failed to initialize"
-      )
+      spring
+      |> Map.take([:module, :module_opts])
+      |> Map.put(:reason, reason)
 
     struct!(__MODULE__, fields)
   end
@@ -19,43 +17,67 @@ end
 
 defmodule GenSpring do
   alias GenSpring.Buffer
+  alias GenSpring.InitError
+
+  @behaviour :sys
 
   use TypedStruct
 
   @type server_state() :: term()
 
   typedstruct do
-    field(:mod, module(), required: true)
-    field(:mod_opts, any(), required: true)
+    field(:module, module(), required: true)
+    field(:module_opts, Keyword.t(), required: true)
     field(:state, server_state(), required: true)
-    field(:buffer, Buffer.t(), required: true)
+    field(:dbg_opt, List.t(:sys.dbg_opt()), required: true)
+    field(:buffer, pid() | :closed, required: true)
+    field(:shutting_down, bool(), required: true)
   end
 
-  @callback init(spring :: __MODULE__.t()) :: {:ok, __MODULE__.t()}
+  @callback init(buffer :: pid(), state :: server_state()) :: {:ok, server_state()}
 
-  @callback handle_request(request :: term(), spring) ::
-              {:noreply, spring}
-            when spring: GenSpring.t()
+  @callback handle_error(error :: term(), buffer :: pid(), state :: server_state()) ::
+              {:noreply, server_state()}
 
-  @callback handle_error(error :: term(), spring) ::
-              {:noreply, spring}
-            when spring: GenSpring.t()
-
-  @callback handle_shutdown(reason :: term(), spring) ::
+  @callback terminate(reason :: term(), state :: server_state()) ::
               no_return()
-            when spring: GenSpring.t()
 
   @callback code_change(old_vsn, state, extra :: term()) ::
               state
             when state: server_state(), old_vsn: :undefined | term()
 
-  def init(spring), do: {:ok, Map.put(spring, :state, %{})}
-  def code_change(_old_vsn, state, _extra), do: state
-  def handle_error(_error, spring), do: spring
-  def handle_close(spring), do: spring
-  def handle_shutdown(_reason, _spring), do: nil
+  @callback handle_request(request :: term(), buffer :: pid(), state :: server_state()) ::
+              {:noreply, server_state()}
 
-  defoverridable init: 1, handle_error: 2, handle_close: 1, code_change: 3
+  @optional_callbacks init: 2,
+                      terminate: 2,
+                      handle_error: 3,
+                      code_change: 3
+
+  @doc false
+  def gen_spring_impl() do
+    quote do
+      @impl GenSpring
+      def handle_error(_error, _buffer, state), do: state
+      @impl GenSpring
+      def init(_buffer, _spring), do: {:ok, %{}}
+      @impl GenSpring
+      def code_change(_old_vsn, state, _extra), do: state
+      @impl GenSpring
+      def terminate(_reason, _state), do: nil
+
+      defoverridable init: 2, terminate: 2, handle_error: 3, code_change: 3
+    end
+  end
+
+  @doc false
+  defmacro __using__(_opts) do
+    quote location: :keep do
+      @behaviour GenSpring
+
+      unquote(gen_spring_impl())
+    end
+  end
 
   @options_schema NimbleOptions.new!(
                     module: [
@@ -75,15 +97,12 @@ defmodule GenSpring do
                         "Used for name registration as described in the \"Name registration\" section in the documentation for `GenServer`."
                     ]
                   )
-  @doc false
-  defmacro __using__(_opts) do
-    quote do
-      @behaviour GenSpring
-    end
-  end
 
   def start_link(opts),
     do: :proc_lib.start_link(__MODULE__, :init, [opts])
+
+  def spawn(opts),
+    do: :proc_lib.spawn(__MODULE__, :init, [opts])
 
   def child_spec(opts),
     do: %{
@@ -94,79 +113,83 @@ defmodule GenSpring do
       shutdown: 500
     }
 
+  def new(opts) do
+    {module, module_args} = opts[:module]
+    buffer = opts[:buffer]
+
+    %__MODULE__{
+      module: module,
+      module_opts: module_args,
+      state: nil,
+      buffer: buffer,
+      shutting_down: false,
+      dbg_opt: :sys.debug_options([])
+    }
+  end
+
   def init(opts) do
     NimbleOptions.validate!(opts, @options_schema)
 
-    {module, module_args} = opts[:module]
     buffer = opts[:buffer]
     me = self()
+    spring = new(opts)
 
-    %__MODULE__{mod: module, mod_opts: module_args, state: nil, buffer: buffer}
-    |> init_it()
-    |> case do
-      {:ok, spring = %__MODULE__{}} ->
-        if opts[:name], do: Process.register(me, opts[:name])
+    spring =
+      case do_init(spring) do
+        {:ok, state} ->
+          if opts[:name], do: Process.register(me, opts[:name])
 
-        :ok = :proc_lib.init_ack(buffer, {:ok, me})
+          :proc_lib.init_ack(buffer, {:ok, me})
 
-        deb = :sys.debug_options([])
+          Map.put(spring, :state, state)
 
-        loop(buffer, deb, spring)
+        {:stop, reason} ->
+          # NOTE: When the server is stopped we allow it to start so that the
+          # reason is handled on `terminate`
+          :proc_lib.init_ack(buffer, {:ok, me})
 
-      {:ok, bad_return_value} ->
-        error = {:bad_return_value, bad_return_value}
-        :ok = :proc_lib.init_ack(buffer, error)
-        exit(error)
+          shutdown(spring, {:server_stopped, reason})
 
-      {:stop, reason} ->
-        :proc_lib.init_fail(buffer, reason)
+        {:error, error} ->
+          init_fail(spring, {:error, error})
 
-      bad_return_value ->
-        error = {:bad_return_value, bad_return_value}
-        :proc_lib.init_fail(buffer, error)
-    end
+        bad_return_value ->
+          init_fail(spring, {:bad_return_value, bad_return_value})
+      end
+
+    loop(spring)
   end
 
-  defp init_it(spring) do
-    try do
-      spring.module.init(spring)
-    catch
-      error -> {:error, error}
-    end
-  end
+  def shutting_down?(server), do: :sys.get_state(server).shutting_down
 
   def request(spring, request), do: Buffer.request(spring.buffer, request)
 
   @doc false
-  def system_continue(buffer, deb, spring), do: loop(buffer, deb, spring)
+  @impl :sys
+  def system_continue(_parent, dbg_opt, spring),
+    do: spring |> Map.put(:dbg_opt, dbg_opt) |> loop()
 
   @doc false
+  @impl :sys
   def system_terminate(reason, _parent, _deb, spring) do
-    do_shutdown(reason, spring)
-  end
-
-  defp do_shutdown(reason, spring) do
-    if not match?({:closed, _}, reason) do
-      Buffer.stop(spring.buffer, reason)
-    end
-
-    spring.mod.handle_shutdown(reason, spring)
-
-    exit(reason)
+    do_system_terminate(reason, spring)
   end
 
   @doc false
+  @impl :sys
   def system_get_state(spring), do: {:ok, spring}
 
   @doc false
+  @impl :sys
   def system_replace_state(state_fun, spring) do
     new_state = state_fun.(spring)
 
     {:ok, new_state, new_state}
   end
 
+  # FIXME: Review this, see https://github.com/erlang/otp/blob/264738bfb75de9f11defe51753ba5a0599154bd0/lib/stdlib/src/gen_server.erl#L785
   @doc false
-  # FIXME: Review this, doesn't seem right, see https://github.com/erlang/otp/blob/264738bfb75de9f11defe51753ba5a0599154bd0/lib/stdlib/src/gen_server.erl#L785
+  @impl :sys
   def system_code_change(spring, _mod, old_vsn, extra) do
     with {:ok, new_state} <- apply(spring.mod, :code_change, [old_vsn, spring.state, extra]) do
       {:ok, Map.put(spring, :state, new_state)}
@@ -175,36 +198,71 @@ defmodule GenSpring do
     other -> other
   end
 
-  defp loop(buffer, deb, spring) do
+  defp loop(spring = %__MODULE__{}) do
+    buffer = spring.buffer
     Buffer.pop_request(buffer)
 
-    state =
-      receive do
-        {:system, from, request} ->
-          :sys.handle_system_msg(request, from, buffer, __MODULE__, deb, spring)
+    receive do
+      {:system, from, request} ->
+        :sys.handle_system_msg(request, from, buffer, __MODULE__, spring.dbg_opt, spring)
 
-          spring.state
+      {:request, request}
+      when not spring.shutting_down ->
+        case spring.module.handle_request(request, buffer, spring.state) do
+          {:noreply, state} ->
+            Map.put(spring, :state, state)
 
-        {:request, request} ->
-          case spring.mod.handle_request(request, spring.state) do
-            {:noreply, state} ->
-              state
+          {:reply, request, state} ->
+            with {:error, error} <- Buffer.request(buffer, request) do
+              send(self(), {:error, error})
+            end
 
-            {:close, reason} ->
-              Buffer
-          end
+            Map.put(spring, :state, state)
 
-        {:error, error} ->
-          case spring.mod.handle_error(error, spring.state) do
-            {:noreply, state} ->
-              state
-          end
-      end
+          {:stop, reason, spring} ->
+            shutdown(spring, {:server_stopped, reason})
 
-    loop(buffer, deb, Map.put(spring, :state, state))
+          {:error, reason, state} ->
+            send(self(), {:error, reason})
+
+            Map.put(spring, :state, state)
+        end
+
+      {:error, error}
+      when not spring.shutting_down ->
+        case spring.module.handle_error(error, buffer, spring.state) do
+          {:noreply, state} ->
+            Map.put(spring, :state, state)
+
+          {:stop, reason} ->
+            shutdown(spring, {:server_stopped, reason})
+        end
+    end
+    |> loop()
   end
 
-  defp write_debug(device, event, name) do
-    IO.write(device, "#{inspect(name)} event = #{inspect(event)}\n")
+  def shutdown(server, reason) do
+    send(server, {:shutdown, reason})
+  end
+
+  defp do_system_terminate(reason, spring) do
+    spring.module.terminate(reason, spring)
+
+    exit(reason)
+  end
+
+  defp do_init(spring) do
+    try do
+      spring.module.init(spring.buffer, spring.module_opts)
+    catch
+      error -> {:error, error}
+    end
+  end
+
+  defp init_fail(spring = %__MODULE__{}, reason) do
+    exception = InitError.exception(spring, reason)
+    error = {:error, exception}
+
+    :proc_lib.init_fail(spring.buffer, error, error)
   end
 end
