@@ -8,10 +8,10 @@ defmodule GenSpringTest do
       @impl GenSpring
       def init(_buffer, _opts), do: {:ok, %{initial: :state}}
 
-      @impl true
+      @impl GenSpring
       def handle_request(_request, _buffer, state), do: {:noreply, state}
 
-      @impl true
+      @impl GenSpring
       def terminate(reason, state) do
         send(state.buffer, {:did_shut_down, reason})
       end
@@ -34,10 +34,17 @@ defmodule GenSpringTest do
       assert match?(%{state: %{new: :state}}, replaced_state)
       assert match?(^replaced_state, :sys.get_state(server))
 
-      Process.flag(:trap_exit, true)
+      :sys.terminate(server, :some_reason)
+
+      assert_receive {:did_shut_down, :some_reason}
+    end
+
+    test "properly terminates on exit" do
+      {:ok, server} = GenSpring.start_link(buffer: self(), module: {TestSpringServer1, []})
+
       Process.exit(server, :some_reason)
 
-      assert_receive {:did_shut_down, :some_reason}, 100
+      assert_receive {:did_shut_down, :some_reason}
     end
   end
 

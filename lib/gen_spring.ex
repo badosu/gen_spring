@@ -15,8 +15,6 @@ defmodule GenSpring do
 
   typedstruct do
     @typedoc """
-      - `name` - A name to register the process with 
-      
     """
 
     field(:module, module(), required: true)
@@ -66,12 +64,8 @@ defmodule GenSpring do
   end
 
   @options_schema NimbleOptions.new!(
-                    asd: [
-                      type: :keyword_list,
-                      keys: []
-                    ],
                     module: [
-                      type: {:or, [:atom, keyword_list: []]},
+                      type: :mod_arg,
                       required: true,
                       doc:
                         "A `{module, args}` tuple, where `module` implements GenSpring behaviour."
@@ -88,7 +82,9 @@ defmodule GenSpring do
                     ]
                   )
 
+  IO.puts("DOCS!!\n\n")
   IO.puts(NimbleOptions.docs(@options_schema))
+  IO.puts("\n\nDOCS!!")
 
   def start_link(opts),
     do: :proc_lib.start_link(__MODULE__, :init, [opts])
@@ -105,15 +101,15 @@ defmodule GenSpring do
   def new(opts) do
     {module, module_args} = opts[:module]
     buffer = opts[:buffer]
-    debug_options = Keyword.get(:debug, [])
+    debug = opts |> Keyword.get(:debug, []) |> :sys.debug_options()
 
     %__MODULE__{
       module: module,
       module_opts: module_args,
-      state: nil,
       buffer: buffer,
-      shutting_down: false,
-      debug: :sys.debug_options(debug_options)
+      debug: debug,
+      state: nil,
+      shutting_down: false
     }
   end
 
