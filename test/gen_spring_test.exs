@@ -10,6 +10,11 @@ defmodule GenSpringTest do
       defmodule unquote(module) do
         use GenSpring
 
+        @impl GenSpring
+        def handle_request(_request, _buffer, state), do: {:noreply, state}
+
+        defoverridable handle_request: 3
+
         unquote(expression)
       end
     end
@@ -17,19 +22,14 @@ defmodule GenSpringTest do
 
   describe "OTP" do
     test "implements the :sys behavior" do
-      server_module = test_server_module(SysBehavior)
+      server_module = test_server_module(ImplementsSysBehavior)
 
-      defserver(server_module) do
+      defserver server_module do
         @impl GenSpring
-        def init(_buffer, _opts), do: {:ok, dbg(%{initial: :state})}
-
-        @impl GenSpring
-        def handle_request(_request, _buffer, state), do: {:noreply, state}
+        def init(_buffer, _opts), do: {:ok, %{initial: :state}}
 
         @impl GenSpring
-        def terminate(reason, state) do
-          send(state.buffer, {:did_shut_down, reason})
-        end
+        def terminate(reason, state), do: send(state.buffer, {:did_shut_down, reason})
       end
 
       server = start_supervised!({GenSpring, buffer: self(), module: {server_module, []}})
@@ -54,9 +54,15 @@ defmodule GenSpringTest do
     end
 
     test "properly terminates on exit" do
-      {:ok, server} = GenSpring.start_link(buffer: self(), module: {TestSpringServer, []})
+      server_module = test_server_module(TerminatesProperlyOnExit)
 
-      Process.flag(:trap_exit, true)
+      defserver server_module do
+        @impl GenSpring
+        def terminate(reason, state), do: send(state.buffer, {:did_shut_down, reason})
+      end
+
+      server = start_supervised!({GenSpring, buffer: self(), module: {server_module, []}})
+
       Process.exit(server, :some_reason)
 
       assert_receive {:did_shut_down, :some_reason}
@@ -64,14 +70,12 @@ defmodule GenSpringTest do
   end
 
   describe "callback init/2" do
-    test "returning {:error, error} shuts down" do
-      defmodule TestSpringServer do
-        use GenSpring
+    test "returning {:error, error} does not spawn the server" do
+      server_module = test_server_module(InitErrorShutsDown)
 
+      defserver server_module do
         @impl GenSpring
-        def init(_buffer, _opts) do
-          {:error, :woops}
-        end
+        def init(_buffer, _opts), do: {:error, :woops}
 
         @impl GenSpring
         def handle_request(request, _buffer, %{requests: requests} = state) do
@@ -79,20 +83,23 @@ defmodule GenSpringTest do
         end
 
         @impl GenSpring
-        def terminate(reason, state) do
-          dbg({reason, state})
-        end
+        def terminate(reason, state), do: send(state.buffer, {:did_shut_down, reason})
       end
 
+      module_opts = []
+
+      init_error =
+        GenSpring.InitError.exception({:error, :woops},
+          module: server_module,
+          module_opts: module_opts
+        )
+
       assert match?(
-               {:error,
-                %GenSpring.InitError{
-                  reason: {:error, :woops},
-                  module_opts: [],
-                  module: TestSpringServer
-                }},
-               GenSpring.start_link(buffer: self(), module: {TestSpringServer, []})
+               {:error, ^init_error},
+               GenSpring.start_link(buffer: self(), module: {server_module, module_opts})
              )
+
+      refute_receive {:did_shut_down, _}
     end
   end
 
