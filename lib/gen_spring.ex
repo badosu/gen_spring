@@ -139,6 +139,8 @@ defmodule GenSpring do
         {:ok, state} ->
           if opts[:name], do: Process.register(me, opts[:name])
 
+          Process.flag(:trap_exit, true)
+
           :proc_lib.init_ack(buffer, {:ok, me})
 
           Map.put(spring, :state, state)
@@ -237,12 +239,18 @@ defmodule GenSpring do
           {:stop, reason} ->
             shutdown(spring, {:server_stopped, reason})
         end
+
+      # TODO: Should we care whence the exit signal came from? Should we inform
+      # the server implementation? (e.g. killed by supervisor/buffer/transport
+      # close)
+      {:EXIT, _from, reason} ->
+        system_terminate(reason, buffer, spring.dbg_opt, spring)
     end
     |> loop()
   end
 
-  def shutdown(server, reason) do
-    send(server, {:shutdown, reason})
+  def shutdown(spring, reason) do
+    system_terminate(reason, spring.buffer, spring.dbg_opt, spring)
   end
 
   defp do_system_terminate(reason, spring) do

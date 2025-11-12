@@ -13,7 +13,6 @@ defmodule GenSpringTest do
 
       @impl true
       def terminate(reason, state) do
-        dbg()
         send(state.buffer, {:did_shut_down, reason})
       end
     end
@@ -35,13 +34,10 @@ defmodule GenSpringTest do
       assert match?(%{state: %{new: :state}}, replaced_state)
       assert match?(^replaced_state, :sys.get_state(server))
 
-      dbg(server)
-      Process.info(server) |> dbg()
       Process.flag(:trap_exit, true)
+      Process.exit(server, :some_reason)
 
-      :sys.terminate(server, :some_reason)
-
-      assert_receive {:did_shut_down, :normal}, 100
+      assert_receive {:did_shut_down, :some_reason}, 100
     end
   end
 
@@ -66,8 +62,6 @@ defmodule GenSpringTest do
     end
 
     test "returning {:error, error} shuts down" do
-      dbg(Process.info(self()))
-
       assert match?(
                {:error,
                 %GenSpring.InitError{
