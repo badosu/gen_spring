@@ -1,9 +1,8 @@
 defmodule GenSpringTest do
   use ExUnit.Case, async: true
 
-  def test_server_module(module) do
-    Module.concat([__MODULE__, SpringTestServer, module])
-  end
+  def test_server_module(module),
+    do: Module.concat(__MODULE__.SpringTestServer, module)
 
   defmacro defserver(module, do: expression) do
     quote do
@@ -69,8 +68,27 @@ defmodule GenSpringTest do
     end
   end
 
-  describe "callback init/2" do
-    test "returning {:error, error} does not spawn the server" do
+  describe "initialization" do
+    test "providing module not implementing GenSpring errors out" do
+      defmodule __MODULE__.SpringTestServer.NoImplementGenSpring do
+      end
+
+      server_module = test_server_module(NoImplementGenSpring)
+      module_opts = []
+
+      init_error =
+        GenSpring.InitError.exception(:no_genspring,
+          module: server_module,
+          module_opts: module_opts
+        )
+
+      start_result =
+        start_supervised({GenSpring, buffer: self(), module: {server_module, module_opts}})
+
+      assert match?({:error, {^init_error, _child}}, start_result)
+    end
+
+    test "returning {:error, error} on callback init does not spawn the server" do
       server_module = test_server_module(InitErrorShutsDown)
 
       defserver server_module do
@@ -94,42 +112,37 @@ defmodule GenSpringTest do
           module_opts: module_opts
         )
 
-      assert match?(
-               {:error, ^init_error},
-               GenSpring.start_link(buffer: self(), module: {server_module, module_opts})
-             )
+      start_result =
+        start_supervised({GenSpring, buffer: self(), module: {server_module, module_opts}})
+
+      assert match?({:error, {^init_error, _child}}, start_result)
 
       refute_receive {:did_shut_down, _}
     end
   end
 
   describe "" do
-    defmodule TestSpringServer do
-      use GenSpring
-
-      @impl GenSpring
-      def init(_buffer, _opts) do
-        {:ok, %{requests: []}}
-      end
-
-      @impl GenSpring
-      def handle_request(request, _buffer, %{requests: requests} = state) do
-        {:noreply, Map.put(state, :requests, requests ++ [request.name])}
-      end
-    end
-
     test "" do
-      {:ok, server} = GenSpring.start_link(buffer: self(), module: {TestSpringServer, []})
+      server_module = test_server_module(ReceivesRequests)
+
+      defserver server_module do
+        @impl GenSpring
+        def init(_buffer, _opts), do: {:ok, %{requests: []}}
+
+        @impl GenSpring
+        def handle_request(request, _buffer, %{requests: requests} = state) do
+          {:noreply, Map.put(state, :requests, requests ++ [request.name])}
+        end
+      end
+
+      {:ok, server} = GenSpring.start_link(buffer: self(), module: {server_module, []})
 
       assert_receive {:"$gen_cast", :pop_request}
       refute_receive _
 
       send(server, {:request, %{name: :req1}})
 
-      assert match?(
-               %{state: %{requests: [:req1]}},
-               :sys.get_state(server)
-             )
+      assert match?(%{state: %{requests: [:req1]}}, :sys.get_state(server))
     end
   end
 end

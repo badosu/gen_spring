@@ -1,7 +1,6 @@
 defmodule GenSpring.InitError do
   defexception [:reason, :module_opts, :module]
 
-  @impl Exception
   def message(%{reason: :no_genspring} = init_error),
     do: "Module #{inspect(init_error.module)} does not implement the GenSpring behavior"
 

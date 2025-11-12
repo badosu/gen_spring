@@ -104,7 +104,7 @@ defmodule GenSpring do
       shutdown: 500
     }
 
-  def new(opts) do
+  defp init_new(opts) do
     {module, module_opts} = opts[:module]
     buffer = opts[:buffer]
     debug = opts |> Keyword.get(:debug, []) |> :sys.debug_options()
@@ -113,25 +113,26 @@ defmodule GenSpring do
     |> Keyword.get(:behaviour, [])
     |> Enum.member?(GenSpring)
     |> if do
-      {:ok,
-       %__MODULE__{
-         parent: opts[:parent],
-         module: module,
-         module_opts: module_opts,
-         buffer: buffer,
-         debug: debug,
-         state: nil,
-         shutting_down: false
-       }}
+      spring = %__MODULE__{
+        parent: opts[:parent],
+        module: module,
+        module_opts: module_opts,
+        buffer: buffer,
+        debug: debug,
+        state: nil,
+        shutting_down: false
+      }
+
+      spring
     else
-      {:error, InitError.exception(:no_genspring, module: module, module_opts: module_opts)}
+      init_fail(opts[:parent], :no_genspring, module: module, module_opts: module_opts)
     end
   end
 
   def init(opts) do
     NimbleOptions.validate!(opts, @options_schema)
 
-    {:ok, spring} = new(opts)
+    spring = init_new(opts)
 
     case init_module(spring) do
       {:ok, state} ->
@@ -140,13 +141,15 @@ defmodule GenSpring do
         Map.put(spring, :state, state)
 
       {:stop, reason} ->
+        init_ack(spring)
+
         stop(spring, reason, spring.state)
 
-      {:error, error} ->
-        init_fail(spring, {:error, error})
+      {:error, reason} ->
+        init_fail(opts[:parent], reason, opts[:module])
 
       bad_return_value ->
-        init_fail(spring, {:bad_return_value, bad_return_value})
+        init_fail(opts[:parent], {:bad_return_value, bad_return_value}, opts[:module])
     end
     |> loop()
   end
@@ -259,11 +262,11 @@ defmodule GenSpring do
     end
   end
 
-  defp init_fail(spring = %__MODULE__{}, reason) do
-    exception = InitError.exception(reason, Map.from_struct(spring))
+  defp init_fail(parent, reason, module_opts) do
+    exception = InitError.exception(reason, module_opts)
     error = {:error, exception}
 
-    :proc_lib.init_fail(spring.parent, error, error)
+    :proc_lib.init_fail(parent, error, error)
   end
 
   defp init_ack(spring = %__MODULE__{}) do
