@@ -4,21 +4,8 @@ defmodule GenSpring.Buffer do
 
   alias GenSpring.Requests
   alias GenSpring.Communication.Transport
+  alias GenSpring.TransportError
   alias ThousandIsland.Socket
-
-  defmodule TransportError do
-    @type transport_send_reason() :: :closed | {:timeout, rest_data :: binary()} | :inet.posix()
-    @type reason() :: transport_send_reason() | term()
-
-    defexception [:message, :reason, :index]
-
-    @impl Exception
-    def exception(reason, index \\ nil) do
-      message = "Failed to communicate with transport"
-
-      %__MODULE__{message: message, reason: reason, index: index}
-    end
-  end
 
   @type request_result() :: {:ok, Request.t()} | {:error, Requests.ParseError.t()}
   @type request_queue() :: {List.t(request_result()), List.t(request_result())}
@@ -67,7 +54,7 @@ defmodule GenSpring.Buffer do
     end)
   end
 
-  def close(buffer_pid, reason) do
+  def close(_buffer_pid, _reason) do
     # GenServer.stop(buffer_pid, reason)
   end
 

@@ -70,7 +70,7 @@ defmodule GenSpring.BufferTest do
       allow(Requests, self(), buffer)
 
       message_1 = "message_1"
-      request_1 = Requests.ParseError.exception(message_1)
+      request_1 = GenSpring.ParseError.exception(message_1)
 
       Requests
       |> expect(:decode, fn incoming_message ->
@@ -117,7 +117,7 @@ defmodule GenSpring.BufferTest do
         :ok
       end)
 
-      assert :ok == Buffer.send_request(buffer, request_1)
+      assert :ok == Buffer.request(buffer, request_1)
     end
 
     test "returns encode errors" do
@@ -127,7 +127,7 @@ defmodule GenSpring.BufferTest do
       allow(Requests, self(), buffer)
 
       request_1 = %{request: :one}
-      error_1 = Requests.EncodeError.exception(request_1)
+      error_1 = GenSpring.EncodeError.exception(request_1)
 
       Requests
       |> expect(:encode, fn outgoing_request ->
@@ -136,7 +136,7 @@ defmodule GenSpring.BufferTest do
         {:error, error_1}
       end)
 
-      assert {:error, error_1} == Buffer.send_request(buffer, request_1)
+      assert {:error, error_1} == Buffer.request(buffer, request_1)
     end
 
     test "returns transport errors" do
@@ -164,8 +164,8 @@ defmodule GenSpring.BufferTest do
         {:error, :closed}
       end)
 
-      assert {:error, Buffer.TransportError.exception(:closed)} ==
-               Buffer.send_request(buffer, request_1)
+      assert {:error, GenSpring.TransportError.exception(:closed)} ==
+               Buffer.request(buffer, request_1)
     end
   end
 end

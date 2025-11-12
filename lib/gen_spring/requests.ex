@@ -1,24 +1,4 @@
 defmodule GenSpring.Requests do
-  defmodule ParseError do
-    defexception [:message]
-
-    @impl Exception
-    def exception(message), do: %__MODULE__{message: message}
-
-    @impl Exception
-    def message(_parse_error), do: "Failed to decode message from client"
-  end
-
-  defmodule EncodeError do
-    defexception [:request]
-
-    @impl Exception
-    def exception(request), do: %__MODULE__{request: request}
-
-    @impl Exception
-    def message(_parse_error), do: "Failed to encode request from server"
-  end
-
   def parse(message) when is_binary(message) do
     [head | sentences] = String.split(message, "\t")
     [method | words] = String.split(head, " ")
@@ -53,7 +33,7 @@ defmodule GenSpring.Requests do
   end
 
   def encode(%{errored: :request} = request) do
-    {:error, __MODULE__.EncodeError.exception(request)}
+    {:error, GenSpring.EncodeError.exception(request)}
   end
 
   def encode(_request) do

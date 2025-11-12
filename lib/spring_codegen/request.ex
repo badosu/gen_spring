@@ -3,12 +3,13 @@ defmodule SpringCodegen.Request do
   Represents a LSP request
   """
   alias SpringCodegen.Param
+  alias SpringCodegen.Codegen
 
   use TypedStruct
 
   typedstruct do
     field(:description, String.t())
-    field(:params, list(SpringCodegen.Param.t()))
+    field(:params, list(Param.t()))
     field(:responses, list(Map.t()))
     field(:source, :client | :server)
     field(:method, String.t())
@@ -26,7 +27,7 @@ defmodule SpringCodegen.Request do
     }
   end
 
-  defimpl SpringCodegen.Codegen do
+  defimpl Codegen do
     require EEx
 
     def module_name(request) do
