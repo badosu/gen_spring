@@ -11,13 +11,13 @@ defmodule GenSpring.Requests do
   end
 
   defmodule EncodeError do
-    defexception [:message, :request]
+    defexception [:message, :request, :index]
 
     @impl Exception
-    def exception(request) do
+    def exception(request, index \\ nil) do
       message = "Invalid request provided"
 
-      %__MODULE__{message: message, request: request}
+      %__MODULE__{message: message, request: request, index: index}
     end
   end
 

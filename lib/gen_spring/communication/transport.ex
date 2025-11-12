@@ -1,6 +1,6 @@
 defmodule GenSpring.Communication.Transport do
-  alias GenSpring.Buffer
   use ThousandIsland.Handler
+  alias GenSpring.Buffer
 
   @impl ThousandIsland.Handler
   def handle_connection(_socket, state) do
@@ -11,14 +11,19 @@ defmodule GenSpring.Communication.Transport do
   end
 
   @impl ThousandIsland.Handler
-  def handle_data(data, _socket, %{msg_buffer: msg_buffer, buffer: buffer} = state) do
-    {msg_buffer, messages} = get_buffer_and_messages(msg_buffer, data)
+  def handle_data(data, _socket, state) do
+    {msg_buffer, messages} = get_buffer_and_messages(state.msg_buffer, data)
 
     if not Enum.empty?(messages) do
-      :ok = Buffer.push_messages(buffer, messages)
+      :ok = Buffer.push_messages(state.buffer, messages)
     end
 
     {:continue, Map.put(state, :msg_buffer, msg_buffer)}
+  end
+
+  @impl ThousandIsland.Handler
+  def handle_close(_socket, state) do
+    Buffer.stop(state.buffer, :closed)
   end
 
   defdelegate send(transport, message), to: ThousandIsland.Socket
