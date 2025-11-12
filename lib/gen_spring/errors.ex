@@ -2,12 +2,16 @@ defmodule GenSpring.InitError do
   defexception [:reason, :module_opts, :module]
 
   @impl Exception
+  def message(%{reason: :no_genspring} = init_error),
+    do: "Module #{inspect(init_error.module)} does not implement the GenSpring behavior"
+
   def message(init_error),
     do: "GenSpring server #{inspect(init_error.module)} failed to initialize"
 
-  def exception(spring, reason) do
+  def exception(reason, spring) do
     fields =
       spring
+      |> Map.new()
       |> Map.take([:module, :module_opts])
       |> Map.put(:reason, reason)
 

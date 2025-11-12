@@ -22,6 +22,7 @@ defmodule GenSpring do
     field(:state, server_state(), required: true)
     field(:debug, List.t(:sys.dbg_opt()), required: true)
     field(:buffer, pid() | :closed, required: true)
+    field(:parent, pid(), required: true)
     field(:shutting_down, bool(), required: true)
   end
 
@@ -70,6 +71,11 @@ defmodule GenSpring do
                       doc:
                         "A `{module, args}` tuple, where `module` implements GenSpring behaviour."
                     ],
+                    parent: [
+                      type: :pid,
+                      required: true,
+                      doc: "The process which spawned the instance."
+                    ],
                     buffer: [
                       type: :pid,
                       required: true,
@@ -87,7 +93,7 @@ defmodule GenSpring do
   IO.puts("\n\nDOCS!!")
 
   def start_link(opts),
-    do: :proc_lib.start_link(__MODULE__, :init, [opts])
+    do: :proc_lib.start_link(__MODULE__, :init, [Keyword.put(opts, :parent, self())])
 
   def child_spec(opts),
     do: %{
@@ -99,24 +105,33 @@ defmodule GenSpring do
     }
 
   def new(opts) do
-    {module, module_args} = opts[:module]
+    {module, module_opts} = opts[:module]
     buffer = opts[:buffer]
     debug = opts |> Keyword.get(:debug, []) |> :sys.debug_options()
 
-    %__MODULE__{
-      module: module,
-      module_opts: module_args,
-      buffer: buffer,
-      debug: debug,
-      state: nil,
-      shutting_down: false
-    }
+    module.__info__(:attributes)
+    |> Keyword.get(:behaviour, [])
+    |> Enum.member?(GenSpring)
+    |> if do
+      {:ok,
+       %__MODULE__{
+         parent: opts[:parent],
+         module: module,
+         module_opts: module_opts,
+         buffer: buffer,
+         debug: debug,
+         state: nil,
+         shutting_down: false
+       }}
+    else
+      {:error, InitError.exception(:no_genspring, module: module, module_opts: module_opts)}
+    end
   end
 
   def init(opts) do
     NimbleOptions.validate!(opts, @options_schema)
 
-    spring = new(opts)
+    {:ok, spring} = new(opts)
 
     case init_module(spring) do
       {:ok, state} ->
@@ -245,10 +260,10 @@ defmodule GenSpring do
   end
 
   defp init_fail(spring = %__MODULE__{}, reason) do
-    exception = InitError.exception(spring, reason)
+    exception = InitError.exception(reason, Map.from_struct(spring))
     error = {:error, exception}
 
-    :proc_lib.init_fail(spring.buffer, error, error)
+    :proc_lib.init_fail(spring.parent, error, error)
   end
 
   defp init_ack(spring = %__MODULE__{}) do
@@ -257,6 +272,6 @@ defmodule GenSpring do
 
     Process.flag(:trap_exit, true)
 
-    :proc_lib.init_ack(spring.buffer, {:ok, self()})
+    :proc_lib.init_ack(spring.parent, {:ok, self()})
   end
 end

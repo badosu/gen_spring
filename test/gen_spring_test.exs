@@ -1,30 +1,44 @@
 defmodule GenSpringTest do
   use ExUnit.Case, async: true
 
-  describe "OTP" do
-    defmodule TestSpringServer1 do
-      use GenSpring
+  def test_server_module(module) do
+    Module.concat([__MODULE__, SpringTestServer, module])
+  end
 
-      @impl GenSpring
-      def init(_buffer, _opts), do: {:ok, %{initial: :state}}
+  defmacro defserver(module, do: expression) do
+    quote do
+      defmodule unquote(module) do
+        use GenSpring
 
-      @impl GenSpring
-      def handle_request(_request, _buffer, state), do: {:noreply, state}
-
-      @impl GenSpring
-      def terminate(reason, state) do
-        send(state.buffer, {:did_shut_down, reason})
+        unquote(expression)
       end
     end
+  end
 
+  describe "OTP" do
     test "implements the :sys behavior" do
-      {:ok, server} = GenSpring.start_link(buffer: self(), module: {TestSpringServer1, []})
+      server_module = test_server_module(SysBehavior)
+
+      defserver(server_module) do
+        @impl GenSpring
+        def init(_buffer, _opts), do: {:ok, dbg(%{initial: :state})}
+
+        @impl GenSpring
+        def handle_request(_request, _buffer, state), do: {:noreply, state}
+
+        @impl GenSpring
+        def terminate(reason, state) do
+          send(state.buffer, {:did_shut_down, reason})
+        end
+      end
+
+      server = start_supervised!({GenSpring, buffer: self(), module: {server_module, []}})
 
       assert :ok == :sys.suspend(server)
       assert :ok == :sys.resume(server)
 
       assert match?(
-               %{module: TestSpringServer1, state: %{initial: :state}},
+               %{module: ^server_module, state: %{initial: :state}},
                :sys.get_state(server)
              )
 
@@ -40,8 +54,9 @@ defmodule GenSpringTest do
     end
 
     test "properly terminates on exit" do
-      {:ok, server} = GenSpring.start_link(buffer: self(), module: {TestSpringServer1, []})
+      {:ok, server} = GenSpring.start_link(buffer: self(), module: {TestSpringServer, []})
 
+      Process.flag(:trap_exit, true)
       Process.exit(server, :some_reason)
 
       assert_receive {:did_shut_down, :some_reason}
@@ -49,40 +64,40 @@ defmodule GenSpringTest do
   end
 
   describe "callback init/2" do
-    defmodule TestSpringServer3 do
-      use GenSpring
-
-      @impl GenSpring
-      def init(_buffer, _opts) do
-        {:error, :woops}
-      end
-
-      @impl GenSpring
-      def handle_request(request, _buffer, %{requests: requests} = state) do
-        {:noreply, Map.put(state, :requests, requests ++ [request.name])}
-      end
-
-      @impl GenSpring
-      def terminate(reason, state) do
-        dbg({reason, state})
-      end
-    end
-
     test "returning {:error, error} shuts down" do
+      defmodule TestSpringServer do
+        use GenSpring
+
+        @impl GenSpring
+        def init(_buffer, _opts) do
+          {:error, :woops}
+        end
+
+        @impl GenSpring
+        def handle_request(request, _buffer, %{requests: requests} = state) do
+          {:noreply, Map.put(state, :requests, requests ++ [request.name])}
+        end
+
+        @impl GenSpring
+        def terminate(reason, state) do
+          dbg({reason, state})
+        end
+      end
+
       assert match?(
                {:error,
                 %GenSpring.InitError{
                   reason: {:error, :woops},
                   module_opts: [],
-                  module: TestSpringServer3
+                  module: TestSpringServer
                 }},
-               GenSpring.start_link(buffer: self(), module: {TestSpringServer3, []})
+               GenSpring.start_link(buffer: self(), module: {TestSpringServer, []})
              )
     end
   end
 
   describe "" do
-    defmodule TestSpringServer2 do
+    defmodule TestSpringServer do
       use GenSpring
 
       @impl GenSpring
@@ -97,7 +112,7 @@ defmodule GenSpringTest do
     end
 
     test "" do
-      {:ok, server} = GenSpring.start_link(buffer: self(), module: {TestSpringServer2, []})
+      {:ok, server} = GenSpring.start_link(buffer: self(), module: {TestSpringServer, []})
 
       assert_receive {:"$gen_cast", :pop_request}
       refute_receive _
