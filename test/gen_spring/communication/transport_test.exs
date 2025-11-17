@@ -10,12 +10,12 @@ defmodule GenSpring.Communication.TransportTest do
       module_opts = {MySpringServer, my: :opts}
 
       expect(Buffer, :start_link, fn opts ->
-        assert Keyword.fetch!(opts, :module) == module_opts
+        assert Keyword.fetch!(opts, :server) == module_opts
 
         {:ok, :buffer}
       end)
 
-      assert {:continue, state} = Transport.handle_connection(:socket, module: module_opts)
+      assert {:continue, state} = Transport.handle_connection(:socket, server: module_opts)
       assert match?(%{msg_buffer: "", buffer: :buffer}, state)
     end
   end

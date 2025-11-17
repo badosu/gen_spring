@@ -65,7 +65,7 @@ defmodule GenSpring do
   end
 
   @options_schema NimbleOptions.new!(
-                    module: [
+                    server: [
                       type: :mod_arg,
                       required: true,
                       doc:
@@ -81,10 +81,12 @@ defmodule GenSpring do
                       required: true,
                       doc: "The buffer process associated to the instance."
                     ],
-                    name: [
-                      type: :any,
-                      doc:
-                        "Used for name registration as described in the \"Name registration\" section in the documentation for `GenServer`."
+                    server_opts: [
+                      type: :keyword_list,
+                      default: [],
+                      keys: [
+                        debug: [type: :keyword_list]
+                      ]
                     ]
                   )
 
@@ -105,7 +107,7 @@ defmodule GenSpring do
     }
 
   defp init_new(opts) do
-    {module, module_opts} = opts[:module]
+    {module, module_opts} = opts[:server]
     buffer = opts[:buffer]
     debug = opts |> Keyword.get(:debug, []) |> :sys.debug_options()
 
@@ -125,7 +127,7 @@ defmodule GenSpring do
 
       spring
     else
-      init_fail(opts[:parent], :no_genspring, module: module, module_opts: module_opts)
+      init_fail(opts, :no_genspring)
     end
   end
 
@@ -146,10 +148,10 @@ defmodule GenSpring do
         stop(spring, reason, spring.state)
 
       {:error, reason} ->
-        init_fail(opts[:parent], reason, opts[:module])
+        init_fail(opts, reason)
 
       bad_return_value ->
-        init_fail(opts[:parent], {:bad_return_value, bad_return_value}, opts[:module])
+        init_fail(opts, {:bad_return_value, bad_return_value})
     end
     |> loop()
   end
@@ -201,6 +203,7 @@ defmodule GenSpring do
         :sys.handle_system_msg(request, from, buffer, __MODULE__, spring.debug, spring)
 
       {:stop, reason} ->
+        dbg(reason: reason)
         system_terminate({:server_stopped, reason}, spring.buffer, spring.debug, spring)
 
       {:request, request} ->
@@ -237,6 +240,7 @@ defmodule GenSpring do
       # the server implementation? (e.g. killed by supervisor/buffer/transport
       # close)
       {:EXIT, _from, reason} ->
+        dbg(reason: reason)
         system_terminate(reason, buffer, spring.debug, spring)
     end
     |> loop()
@@ -251,6 +255,8 @@ defmodule GenSpring do
   defp do_system_terminate(reason, spring) do
     spring.module.terminate(reason, spring)
 
+    dbg({:terminn, reason})
+
     exit(reason)
   end
 
@@ -262,11 +268,13 @@ defmodule GenSpring do
     end
   end
 
-  defp init_fail(parent, reason, module_opts) do
-    exception = InitError.exception(reason, module_opts)
+  defp init_fail(opts, reason) do
+    {module, module_opts} = opts[:server]
+
+    exception = InitError.exception(reason, module: module, module_opts: module_opts)
     error = {:error, exception}
 
-    :proc_lib.init_fail(parent, error, error)
+    :proc_lib.init_fail(opts[:parent], error, error)
   end
 
   defp init_ack(spring = %__MODULE__{}) do

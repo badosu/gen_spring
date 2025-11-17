@@ -3,6 +3,11 @@ defmodule SupervisorHelper do
     make_supervision_tree(supervisor)
   end
 
+  def get_child(supervisor, finder) do
+    Supervisor.which_children(supervisor)
+    |> Enum.find_value(finder)
+  end
+
   defp make_supervision_tree(supervisor) do
     Enum.reduce(Supervisor.which_children(supervisor), [], fn child_spec, acc ->
       {id, pid, type, modules} = child_spec

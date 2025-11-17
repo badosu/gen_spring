@@ -4,6 +4,7 @@ Application.ensure_all_started(:mimic)
 Mimic.copy(GenSpring)
 Mimic.copy(GenSpring.Buffer)
 Mimic.copy(GenSpring.Requests)
+Mimic.copy(GenSpring.Communication.Transport)
 Mimic.copy(ThousandIsland.Socket)
 
 ExUnit.start()

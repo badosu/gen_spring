@@ -2,10 +2,22 @@ defmodule GenSpring.Communication.Transport do
   use ThousandIsland.Handler
 
   alias GenSpring.Buffer
+  alias GenSpring.TransportError
+  alias ThousandIsland.Socket
+
+  def send(transport, message), do: GenServer.call(transport, {:send, message})
+
+  # NOTE: When the connection is closed client side (reason = :closed), we
+  # don't need to stop the transport
+  def close(_transport, :closed),
+    do: :ok
+
+  def close(transport, reason),
+    do: GenServer.stop(transport, {:shutdown, reason})
 
   @impl ThousandIsland.Handler
-  def handle_connection(_socket, state) do
-    buffer_opts = Keyword.take(state, [:module, :buffer_name])
+  def handle_connection(_socket, opts) do
+    buffer_opts = opts |> Keyword.take([:server]) |> Keyword.put(:transport, self())
     {:ok, buffer} = Buffer.start_link(buffer_opts)
 
     {:continue, %{msg_buffer: "", buffer: buffer}}
@@ -24,18 +36,30 @@ defmodule GenSpring.Communication.Transport do
 
   @impl ThousandIsland.Handler
   def handle_close(_socket, state) do
+    dbg(:hwooo)
     Buffer.close(state.buffer, :closed)
   end
 
-  # NOTE: When the connection is closed client side (reason = :closed), we
-  # don't need to stop the transport
-  def close(_transport, :closed),
-    do: :ok
+  @impl ThousandIsland.Handler
+  def handle_shutdown(_socket, state) do
+    dbg(:hwooo)
+    Buffer.close(state.buffer, :closed)
+  end
 
-  def close(transport, reason),
-    do: GenServer.stop(transport, {:shutdown, reason})
+  @impl true
+  def handle_call({:send, message}, from, {socket, state}) do
+    Task.async(fn ->
+      GenServer.reply(from, transport_send(socket, message))
+    end)
 
-  defdelegate send(transport, message), to: ThousandIsland.Socket
+    {:noreply, {socket, state}}
+  end
+
+  defp transport_send(socket, message) do
+    with {:error, error} <- Socket.send(socket, "#{message}\n") do
+      {:error, TransportError.exception(error)}
+    end
+  end
 
   defp get_buffer_and_messages("" = _msg_buffer, data) do
     segments = String.split(data, "\n") |> Enum.reject(&(&1 == ""))

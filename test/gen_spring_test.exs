@@ -1,23 +1,7 @@
 defmodule GenSpringTest do
   use ExUnit.Case, async: true
 
-  def test_server_module(module),
-    do: Module.concat(__MODULE__.SpringTestServer, module)
-
-  defmacro defserver(module, do: expression) do
-    quote do
-      defmodule unquote(module) do
-        use GenSpring
-
-        @impl GenSpring
-        def handle_request(_request, _buffer, state), do: {:noreply, state}
-
-        defoverridable handle_request: 3
-
-        unquote(expression)
-      end
-    end
-  end
+  import Test.Support.GenSpring
 
   describe "OTP" do
     test "implements the :sys behavior" do
@@ -31,7 +15,7 @@ defmodule GenSpringTest do
         def terminate(reason, state), do: send(state.buffer, {:did_shut_down, reason})
       end
 
-      server = start_supervised!({GenSpring, buffer: self(), module: {server_module, []}})
+      server = start_supervised!({GenSpring, buffer: self(), server: {server_module, []}})
 
       assert :ok == :sys.suspend(server)
       assert :ok == :sys.resume(server)
@@ -60,7 +44,7 @@ defmodule GenSpringTest do
         def terminate(reason, state), do: send(state.buffer, {:did_shut_down, reason})
       end
 
-      server = start_supervised!({GenSpring, buffer: self(), module: {server_module, []}})
+      server = start_supervised!({GenSpring, buffer: self(), server: {server_module, []}})
 
       Process.exit(server, :some_reason)
 
@@ -70,10 +54,10 @@ defmodule GenSpringTest do
 
   describe "initialization" do
     test "providing module not implementing GenSpring errors out" do
-      defmodule __MODULE__.SpringTestServer.NoImplementGenSpring do
+      defmodule TestSpring.NoImplementGenSpring do
       end
 
-      server_module = test_server_module(NoImplementGenSpring)
+      server_module = TestSpring.NoImplementGenSpring
       module_opts = []
 
       init_error =
@@ -83,7 +67,7 @@ defmodule GenSpringTest do
         )
 
       start_result =
-        start_supervised({GenSpring, buffer: self(), module: {server_module, module_opts}})
+        start_supervised({GenSpring, buffer: self(), server: {server_module, module_opts}})
 
       assert match?({:error, {^init_error, _child}}, start_result)
     end
@@ -107,13 +91,13 @@ defmodule GenSpringTest do
       module_opts = []
 
       init_error =
-        GenSpring.InitError.exception({:error, :woops},
+        GenSpring.InitError.exception(:woops,
           module: server_module,
           module_opts: module_opts
         )
 
       start_result =
-        start_supervised({GenSpring, buffer: self(), module: {server_module, module_opts}})
+        start_supervised({GenSpring, buffer: self(), server: {server_module, module_opts}})
 
       assert match?({:error, {^init_error, _child}}, start_result)
 
@@ -135,7 +119,7 @@ defmodule GenSpringTest do
         end
       end
 
-      {:ok, server} = GenSpring.start_link(buffer: self(), module: {server_module, []})
+      {:ok, server} = GenSpring.start_link(buffer: self(), server: {server_module, []})
 
       assert_receive {:"$gen_cast", :pop_request}
       refute_receive _

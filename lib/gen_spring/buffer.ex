@@ -4,8 +4,6 @@ defmodule GenSpring.Buffer do
 
   alias GenSpring.Requests
   alias GenSpring.Communication.Transport
-  alias GenSpring.TransportError
-  alias ThousandIsland.Socket
 
   @type request_result() :: {:ok, Request.t()} | {:error, Requests.ParseError.t()}
   @type request_queue() :: {List.t(request_result()), List.t(request_result())}
@@ -43,20 +41,7 @@ defmodule GenSpring.Buffer do
     {:noreply, state}
   end
 
-  defp encode_requests(requests) do
-    requests
-    |> List.wrap()
-    |> Enum.reduce_while({:ok, []}, fn request, {:ok, messages} ->
-      case Requests.encode(request) do
-        {:ok, message} -> {:cont, {:ok, messages ++ [message]}}
-        {:error, error} -> {:halt, {:error, error}}
-      end
-    end)
-  end
-
-  def close(_buffer_pid, _reason) do
-    # GenServer.stop(buffer_pid, reason)
-  end
+  def close(buffer_pid, reason), do: GenServer.stop(buffer_pid, reason)
 
   @initial_state %{request_queue: :queue.new()}
 
@@ -103,15 +88,27 @@ defmodule GenSpring.Buffer do
 
   @impl GenServer
   def handle_continue(:pop_request, buffer) do
-    if GenSpring.shutting_down?(buffer.server),
-      do: {:noreply, buffer},
-      else: {:noreply, do_pop_request(buffer, :queue.out(buffer.requests))}
+    # if GenSpring.shutting_down?(buffer.server),
+    #   do: {:noreply, buffer},
+    {:noreply, do_pop_request(buffer, :queue.out(buffer.request_queue))}
   end
 
   defp start_server(opts) do
-    if Keyword.has_key?(opts, :server),
-      do: Keyword.fetch(opts, :server),
-      else: GenSpring.start_link(buffer: self(), module: Keyword.fetch!(opts, :module))
+    case Keyword.fetch!(opts, :server) do
+      server when is_pid(server) -> {:ok, server}
+      server_opts -> GenSpring.start_link(buffer: self(), server: server_opts)
+    end
+  end
+
+  defp encode_requests(requests) do
+    requests
+    |> List.wrap()
+    |> Enum.reduce_while({:ok, []}, fn request, {:ok, messages} ->
+      case Requests.encode(request) do
+        {:ok, message} -> {:cont, {:ok, messages ++ [message]}}
+        {:error, error} -> {:halt, {:error, error}}
+      end
+    end)
   end
 
   defp send_messages(buffer, [message]),
@@ -136,17 +133,13 @@ defmodule GenSpring.Buffer do
     end
   end
 
-  defp transport_send(buffer, message) do
-    with {:error, error} <- Socket.send(buffer.transport, "#{message}\n") do
-      {:error, TransportError.exception(error)}
-    end
-  end
+  defp transport_send(buffer, message), do: Transport.send(buffer.transport, message)
 
   defp do_pop_request(buffer, {:empty, _requests}), do: buffer
 
   defp do_pop_request(buffer, {{:value, {:ok, request}}, requests}) do
     send(buffer.server, {:request, request})
-    Map.put(buffer, :requests, requests)
+    Map.put(buffer, :request_queue, requests)
   end
 
   defp do_pop_request(buffer, {{:value, {:error, request}}, request_queue}) do
