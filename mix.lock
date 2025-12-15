@@ -1,12 +1,16 @@
 %{
   "decimal": {:hex, :decimal, "2.3.0", "3ad6255aa77b4a3c4f818171b12d237500e63525c2fd056699967a3e7ea20f62", [:mix], [], "hexpm", "a4d66355cb29cb47c3cf30e71329e58361cfcb37c34235ef3bf1d7bf3773aeac"},
+  "elixir_xml": {:hex, :elixir_xml, "0.0.1", "b837ce292973807e1da3ac512c6a34f3df4453cc10558e739f6f8df6bbc11504", [:mix], [], "hexpm", "18649a24b28e304819970982562340df95ec4b10fa7fe457c4cb46c1677ce6c4"},
   "ex_json_schema": {:hex, :ex_json_schema, "0.11.1", "b593f92937a095f66054bb318681397dfe7304e7d2b6b1a7534ea3aa40024f8c", [:mix], [{:decimal, "~> 2.0", [hex: :decimal, repo: "hexpm", optional: false]}], "hexpm", "32d651a575a6ce2fd613f140b0fef8dd0acc7cf8e8bcd29a3a1be5c945700dd5"},
   "ham": {:hex, :ham, "0.3.2", "02ae195f49970ef667faf9d01bc454fb80909a83d6c775bcac724ca567aeb7b3", [:mix], [], "hexpm", "b71cc684c0e5a3d32b5f94b186770551509e93a9ae44ca1c1a313700f2f6a69a"},
   "jason": {:hex, :jason, "1.4.4", "b9226785a9aa77b6857ca22832cffa5d5011a667207eb2a0ad56adb5db443b8a", [:mix], [{:decimal, "~> 1.0 or ~> 2.0", [hex: :decimal, repo: "hexpm", optional: true]}], "hexpm", "c5eb0cab91f094599f94d55bc63409236a8ec69a21a67814529e8d5f6cc90b3b"},
   "mimic": {:hex, :mimic, "2.1.1", "29008b71c842b652b065d6f9a24e05d84a2fac7181c34627e1ef5229659702e1", [:mix], [{:ham, "~> 0.3", [hex: :ham, repo: "hexpm", optional: false]}], "hexpm", "a3c330c8840feb29ab43b2375ac023073b936429e5320dd5ca1c95a7322a0da7"},
   "nimble_options": {:hex, :nimble_options, "1.1.1", "e3a492d54d85fc3fd7c5baf411d9d2852922f66e69476317787a7b2bb000a61b", [:mix], [], "hexpm", "821b2470ca9442c4b6984882fe9bb0389371b8ddec4d45a9504f00a66f650b44"},
+  "saxy": {:hex, :saxy, "1.6.0", "02cb4e9bd045f25ac0c70fae8164754878327ee393c338a090288210b02317ee", [:mix], [], "hexpm", "ef42eb4ac983ca77d650fbdb68368b26570f6cc5895f0faa04d34a6f384abad3"},
+  "sweet_xml": {:hex, :sweet_xml, "0.7.5", "803a563113981aaac202a1dbd39771562d0ad31004ddbfc9b5090bdcd5605277", [:mix], [], "hexpm", "193b28a9b12891cae351d81a0cead165ffe67df1b73fe5866d10629f4faefb12"},
   "telemetry": {:hex, :telemetry, "1.3.0", "fedebbae410d715cf8e7062c96a1ef32ec22e764197f70cda73d82778d61e7a2", [:rebar3], [], "hexpm", "7015fc8919dbe63764f4b4b87a95b7c0996bd539e0d499be6ec9d7f3875b79e6"},
   "thousand_island": {:hex, :thousand_island, "1.4.2", "735fa783005d1703359bbd2d3a5a3a398075ba4456e5afe3c5b7cf4666303d36", [:mix], [{:telemetry, "~> 0.4 or ~> 1.0", [hex: :telemetry, repo: "hexpm", optional: false]}], "hexpm", "1c7637f16558fc1c35746d5ee0e83b18b8e59e18d28affd1f2fa1645f8bc7473"},
   "tracee": {:hex, :tracee, "0.2.0", "636d0a6bab354b0f64261a737e1d6500be12f01435d5d2f371b85c53eae5b718", [:mix], [], "hexpm", "1844ccd4e48f67965a091d73cb311d2b6cbd0b4523056fbf8008adfeaff37553"},
   "typed_struct": {:hex, :typed_struct, "0.3.0", "939789e3c1dca39d7170c87f729127469d1315dcf99fee8e152bb774b17e7ff7", [:mix], [], "hexpm", "c50bd5c3a61fe4e198a8504f939be3d3c85903b382bde4865579bc23111d1b6d"},
+  "xml_json": {:hex, :xml_json, "0.5.0", "54578a8a224ed1d231441cc6fe75272967a8d9384c085220de85841b4fe0ea6f", [:mix], [{:saxy, "~> 1.2", [hex: :saxy, repo: "hexpm", optional: false]}], "hexpm", "71f60843980ac5035a8e7d8a32fb4532c19666904e78bca3cdc3034e8714a6f4"},
 }

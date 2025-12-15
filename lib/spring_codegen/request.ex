@@ -2,17 +2,15 @@ defmodule SpringCodegen.Request do
   @moduledoc """
   Represents a LSP request
   """
-  alias SpringCodegen.Param
-  alias SpringCodegen.Codegen
 
   use TypedStruct
 
   typedstruct do
-    field(:description, String.t())
-    field(:params, list(Param.t()))
-    field(:responses, list(Map.t()))
-    field(:source, :client | :server)
     field(:method, String.t())
+    field(:description, String.t())
+    field(:words, list(Map.t()))
+    field(:sentences, list(Map.t()))
+    field(:source, :client | :server)
     field(:examples, list(String.t()))
   end
 
@@ -21,13 +19,13 @@ defmodule SpringCodegen.Request do
       method: request[:method],
       source: String.to_existing_atom(request[:source]),
       description: request[:description],
-      params: for(param <- Map.get(request, :params, []), do: Param.new(param)),
-      responses: request[:responses],
+      words: request[:words],
+      sentences: request[:sentences],
       examples: request[:examples]
     }
   end
 
-  defimpl Codegen do
+  defimpl SpringCodegen.Codegen do
     require EEx
 
     def module_name(request) do
@@ -39,14 +37,10 @@ defmodule SpringCodegen.Request do
       |> Macro.camelize()
     end
 
-    @path Path.join(:code.priv_dir(:gen_spring), "request.ex.eex")
+    @path Path.join("priv/spring_codegen", "request.ex.eex")
 
-    def to_string(request, metamodel) do
-      render(%{
-        request: request,
-        params: request.params,
-        metamodel: metamodel
-      })
+    def to_string(request) do
+      render(%{request: request})
     end
 
     EEx.function_from_file(:defp, :render, @path, [:assigns])

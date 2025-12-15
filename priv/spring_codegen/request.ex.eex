@@ -1,0 +1,13 @@
+# codegen: do not edit
+defmodule <%= SpringCodegen.Codegen.module_name(@request) %> do<%= if @request.description do %>
+  @moduledoc """
+  <%= String.replace(@request.description, "\n", "\n  ") %>
+  """<% end %>
+
+  words = <%= inspect(@request.words, pretty: true) %>
+  sentences = <%= inspect(@request.sentences, pretty: true) %>
+
+  use GenSpring.Request,
+    words: words,
+    sentences: sentences
+end

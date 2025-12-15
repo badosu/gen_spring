@@ -2,12 +2,21 @@ defmodule GenSpring.ApplicationTest do
   use ExUnit.Case, async: true
   use Mimic
 
-  import Test.Support.GenSpring
+  GenSpring.Requests.Unbridgedclientfrom
 
   test "" do
-    server_module = test_server_module(IntegratedTest)
+    server_module = IntegratedTest
+    test_pid = self()
 
-    defserver server_module, self() do
+    defmodule server_module do
+      use GenSpring
+
+      @impl GenSpring
+      def init(_buffer, opts) do
+        dbg(opts: opts)
+        {:ok, %{initial: :state}}
+      end
+
       @impl GenSpring
       def handle_request(request, buffer, state) do
         dbg(request)
@@ -17,12 +26,12 @@ defmodule GenSpring.ApplicationTest do
 
       @impl GenSpring
       def terminate(reason, state) do
-        dbg(@test_pid)
-        send(@test_pid, :server_shutdown)
+        dbg(hue: state)
+        send(state.test_pid, :server_shutdown)
       end
     end
 
-    {pid, port} = start_application(server_module)
+    {pid, port} = start_application(server_module, test_pid: self())
 
     {:ok, client} = :gen_tcp.connect(:localhost, port, active: false)
 
@@ -33,12 +42,12 @@ defmodule GenSpring.ApplicationTest do
     assert_receive :server_shutdown, 1000
   end
 
-  defp start_application(server) do
+  defp start_application(server, server_opts \\ []) do
     type = nil
 
     args = [
       transport: [port: 0, num_acceptors: 1],
-      server: {server, []}
+      server: {server, server_opts}
     ]
 
     {:ok, app_pid} =

@@ -1,63 +1,47 @@
 defmodule SpringCodegen do
-  alias SpringCodegen.{Request, MetaModel}
   require EEx
 
-  def fetch_protocol() do
-    with {:ok, protocol} <- read_json("spring.json"),
-         {:ok, schema} <- read_json("spring.schema.json"),
-         :ok <- validate_schema(schema, protocol) do
-      {:ok, MetaModel.new(protocol)}
-    end
-  end
-
   def generate() do
-    generate(path: "lib/protocol")
+    generate(schema: "ProtocolDescription.json")
   end
 
   def generate(argv) when is_list(argv) do
-    {_, opts} = OptionParser.parse!(argv, strict: [path: :string])
-    path = opts[:path]
+    {_, opts} = OptionParser.parse!(argv, strict: [schema: :string])
+    schema_path = opts[:schema]
 
-    with {:ok, protocol} <- fetch_protocol() do
-      do_generate(path, protocol)
-    end
+    SpringCodegen.MetaModel.fetch!(schema_path)
+    |> do_generate("lib/gen_spring/requests")
   end
 
-  defp do_generate(path, metamodel) do
+  defp do_generate(meta_model, path) do
     File.rm_rf!(path)
+    File.mkdir_p!(path)
 
-    for mod <- metamodel.requests do
-      source_code = SpringCodegen.Codegen.to_string(mod, metamodel)
+    generate_requests(meta_model, path)
+    generate_spring_requests(meta_model, path)
+  end
 
-      path =
-        case mod do
-          %Request{} -> Path.join(path, "requests")
-        end
+  spring_requests_template = Path.join("priv/spring_codegen", "spring_requests.ex.eex")
+  EEx.function_from_file(:defp, :render_spring_requests, spring_requests_template, [:assigns])
+
+  defp generate_spring_requests(meta_model, path) do
+    path = Path.join(path, "spring_requests.ex")
+    source_code = render_spring_requests(meta_model.requests)
+
+    File.write!(path, source_code)
+  end
+
+  defp generate_requests(meta_model, path) do
+    for request_spec <- meta_model.requests do
+      source_code = SpringCodegen.Codegen.to_string(request_spec)
 
       File.mkdir_p!(path)
 
       File.write!(
-        Path.join(path, Macro.underscore(SpringCodegen.Codegen.name(mod)) <> ".ex"),
+        Path.join(path, Macro.underscore(SpringCodegen.Codegen.name(request_spec)) <> ".ex"),
         source_code
       )
     end
-  end
-
-  defp validate_schema(schema, protocol) do
-    ExJsonSchema.Schema.resolve(schema)
-    |> ExJsonSchema.Validator.validate(protocol)
-  end
-
-  defp read_json(path) do
-    with {:ok, contents} <- read_priv(path) do
-      Jason.decode(contents, keys: :atoms)
-    end
-  end
-
-  defp read_priv(path) do
-    :code.priv_dir(:gen_spring)
-    |> Path.join(path)
-    |> File.read()
   end
 
   # alias LSPCodegen.{

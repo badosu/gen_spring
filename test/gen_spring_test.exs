@@ -1,15 +1,18 @@
 defmodule GenSpringTest do
   use ExUnit.Case, async: true
 
-  import Test.Support.GenSpring
-
   describe "OTP" do
     test "implements the :sys behavior" do
-      server_module = test_server_module(ImplementsSysBehavior)
+      server_module = ImplementsSysBehavior
 
-      defserver server_module do
+      defmodule server_module do
+        use GenSpring
+
         @impl GenSpring
         def init(_buffer, _opts), do: {:ok, %{initial: :state}}
+
+        @impl GenSpring
+        def handle_request(_request, _buffer, state), do: {:noreply, state}
 
         @impl GenSpring
         def terminate(reason, state), do: send(state.buffer, {:did_shut_down, reason})
@@ -37,9 +40,14 @@ defmodule GenSpringTest do
     end
 
     test "properly terminates on exit" do
-      server_module = test_server_module(TerminatesProperlyOnExit)
+      server_module = TerminatesProperlyOnExit
 
-      defserver server_module do
+      defmodule server_module do
+        use GenSpring
+
+        @impl GenSpring
+        def handle_request(_request, _buffer, state), do: {:noreply, state}
+
         @impl GenSpring
         def terminate(reason, state), do: send(state.buffer, {:did_shut_down, reason})
       end
@@ -54,10 +62,11 @@ defmodule GenSpringTest do
 
   describe "initialization" do
     test "providing module not implementing GenSpring errors out" do
-      defmodule TestSpring.NoImplementGenSpring do
+      server_module = NoImplementGenSpring
+
+      defmodule server_module do
       end
 
-      server_module = TestSpring.NoImplementGenSpring
       module_opts = []
 
       init_error =
@@ -73,9 +82,11 @@ defmodule GenSpringTest do
     end
 
     test "returning {:error, error} on callback init does not spawn the server" do
-      server_module = test_server_module(InitErrorShutsDown)
+      server_module = InitErrorShutsDown
 
-      defserver server_module do
+      defmodule server_module do
+        use GenSpring
+
         @impl GenSpring
         def init(_buffer, _opts), do: {:error, :woops}
 
@@ -107,10 +118,11 @@ defmodule GenSpringTest do
 
   describe "" do
     test "" do
-      server_module = test_server_module(ReceivesRequests)
+      server_module = ReceivesRequests
 
-      defserver server_module do
+      defmodule server_module do
         @impl GenSpring
+
         def init(_buffer, _opts), do: {:ok, %{requests: []}}
 
         @impl GenSpring

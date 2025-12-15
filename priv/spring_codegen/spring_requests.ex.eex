@@ -1,0 +1,11 @@
+# codegen: do not edit
+defmodule GenSpring.SpringRequests do
+  use GenSpring.Requests, <%=
+      @requests |> dbg()
+      |> Enum.map(fn request ->
+        module = SpringCodegen.Codegen.module_name(@request)
+        {request.method, module}
+      end)
+      |> inspect(pretty: true)
+    %>
+end

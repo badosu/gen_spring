@@ -2,7 +2,7 @@ defmodule GenSpring.Buffer do
   use GenServer
   use TypedStruct
 
-  alias GenSpring.Requests
+  alias GenSpring.SpringRequests
   alias GenSpring.Communication.Transport
 
   @type request_result() :: {:ok, Request.t()} | {:error, Requests.ParseError.t()}
@@ -73,7 +73,7 @@ defmodule GenSpring.Buffer do
   def handle_cast({:push_messages, incoming_messages}, %__MODULE__{} = buffer) do
     incoming_requests =
       incoming_messages
-      |> Enum.map(&Requests.decode/1)
+      |> Enum.map(&SpringRequests.decode/1)
       |> :queue.from_list()
 
     request_queue = :queue.join(buffer.request_queue, incoming_requests)
@@ -104,7 +104,7 @@ defmodule GenSpring.Buffer do
     requests
     |> List.wrap()
     |> Enum.reduce_while({:ok, []}, fn request, {:ok, messages} ->
-      case Requests.encode(request) do
+      case SpringRequests.encode(request) do
         {:ok, message} -> {:cont, {:ok, messages ++ [message]}}
         {:error, error} -> {:halt, {:error, error}}
       end

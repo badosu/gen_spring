@@ -1,0 +1,4423 @@
+{
+  "ProtocolDescription": {
+    "Intro": {
+      "h3": [
+        "Introduction",
+        "Nomenclature",
+        "Protocol rules",
+        "Hosting battles",
+        "Further information"
+      ],
+      "p": [
+        "This is a simple text protocol in a \"human readable form\". Text protocol was chosen because\n  it's easier to debug and implement on the client side. It does require some more overhead,\n  but since server and clients do not communicate much anyway, this is not an issue.",
+        {
+          "i": [
+            "client",
+            "user",
+            "user"
+          ],
+          "__text": "We use two terms for \"clients\": \n and \n.\n  At first, \n was considered to be a registered or logged-in client.\n  The two terms are used uncleanly though, so you may best think of them as equal."
+        },
+        "All communication must be encoded in utf-8. Binary data is not permitted.",
+        {
+          "i": [
+            "line",
+            "message"
+          ],
+          "__text": "A \n, also known as a \n, consists of a single protocol command, plus its arguments, communicated as a single string, and terminated by a newline character (\\n).\n  Lines may be of any length, although the server enforces a somewhat (arbitrary) limit of 10,000 chars.\n  A natural implementation of the protocol will result in almost all lines being under 1,000 chars in length."
+        },
+        {
+          "i": [
+            "command",
+            "words",
+            "sentences"
+          ],
+          "__text": "Each line begins with a \n, written in capitals. \n  The arguments of the command, which come next, come in two types: \n and \n. \n  Word arguments are sequences of non-whitespace characters, and are separated from each other by whitespaces.\n  Sentence arguments are sequences of words (separated by whitespaces), \n  which are considered as a single argument.\n  Sentences arguments are seperated from each other by tab characters (\\t)."
+        },
+        {
+          "i": "always",
+          "__text": "The word arguments of a command \n come first, followed by its sentence arguments.\n  The last word argument is separated from the first sentence argument by a single whitespace.\n  Some examples:"
+        },
+        {
+          "ul": {
+            "li": [
+              {
+                "clink": {
+                  "_name": "JOINEDBATTLE"
+                },
+                "br": "",
+                "code": "JOINEDBATTLE 25869 oxido",
+                "__text": ", with 2 word arguments:"
+              },
+              {
+                "clink": {
+                  "_name": "UPDATEBATTLEINFO"
+                },
+                "br": "",
+                "code": "UPDATEBATTLEINFO 25903 1 0 -210360064 Trojan Hills v03",
+                "__text": ", with 4 words and 1 sentence argument:"
+              },
+              {
+                "clink": {
+                  "_name": "BATTLEOPENED"
+                },
+                "br": "",
+                "code": "BATTLEOPENED 4437 0 0 BlackHoleHost6 71.2.10.1 8626 10 0 0 -1213614804 Spring 104.0    Coastline_Dry_V1    The BlackHoleHost - Conflict    Balanced Annihilation V9.46",
+                "__text": ", with 10 words and 4 sentences:"
+              }
+            ]
+          }
+        },
+        "(So, when a client talks to the server, if you want to include a tab character in a sentence, you can't!)",
+        {
+          "ul": {
+            "li": [
+              "{...} = a sentence arg",
+              "{...} {...} = two sentence args (which should be separated by a tab character!)",
+              "| = multiple choices for the argument i.e. \"OR\"",
+              "[...] = an optional argument"
+            ]
+          },
+          "__text": "The following notation is used within the arguments of a command.\n  A given argument should be assumed to be a word, unless {} is present, in which case it is a sentence."
+        },
+        "All commands, except for some developer/admin specific commands, are listed in the commands section of this document.\n  Their arguments are listed in order, and should be sent in that order.",
+        {
+          "clink": [
+            {
+              "_name": "PING"
+            },
+            {
+              "_name": "PONG"
+            }
+          ],
+          "__text": "A client must maintain a 'constant' connection with the server, to ensure that network timeouts and disconnects can be detected.\n  If no data is being transfered, the client must send \n commands to the server at regular intervals -- every 30 seconds is recommended.\n  The server will reply with a \n command.\n  If no data or ping command has been sent for 60 seconds, the server will assume a network timeout and disconnect the client.\n  Similarly, if the client does not hear back within 30 seconds of a ping, it should assume the server has gone down."
+        },
+        "When a client joins the server, the client will be notified about statuses of users only for cases where this status is non-zero.\n  A client's status and battle status should be assumed to be 0, if not specified otherwise by the server.\n  (This saves on bandwidth, not that we really need to...)",
+        {
+          "clink": [
+            {
+              "_name": "MYBATTLESTATUS"
+            },
+            {
+              "_name": "CLIENTBATTLESTATUS"
+            },
+            {
+              "_name": "MYBATTLESTATUS"
+            }
+          ],
+          "__text": "Most of the commands that notify about some changes are forwarded to the source of the change.\n  For example: When a client sends a \n command,\n  the server sends a \n command to all users in the battle,\n  including the client who sent the \n command.\n  This allows the client to synchronize their local status with the server's, \n  after the server has verified that the status change is valid; therefore, it also serves as confirmation mechanism."
+        },
+        {
+          "code": [
+            "'#123 SAY main hello world!'",
+            "'#123 SAID main Betalord hello world!'"
+          ],
+          "clink": [
+            {
+              "_name": "SAY"
+            },
+            {
+              "_name": "SAID"
+            }
+          ],
+          "__text": "Any message can be prefixed with a message ID.\n  For example:\n  \n\n  is a valid \n command with message ID 123. The server will use this ID in any message sent as a reply, for example:\n  \n\n  would communicate the greeting on to other clients with a \n command."
+        },
+        {
+          "clink": [
+            {
+              "_name": "PING"
+            },
+            {
+              "_name": "PONG"
+            }
+          ],
+          "__text": "The message ID has only one function: to ease tracking server responses for the client.\n  They makes it easier to implement commands that require multiple responses in both directions.\n  You can also use them with \n/\n to measure your round trip time."
+        },
+        "Message IDs should be non-negative values, within 31-bit range (so, 0 up to 2147483647).\n  Negative values are reserved by the server for internal use.",
+        {
+          "h3": "Sub-systems"
+        },
+        "Uberserver carries out email verification for registering new accounts, for account recovery and for changing email address.\n  In order to verify an email address: the server sends a four or eight digit verification code to an email address, and the client must send this code back to the server.\n  Each verification code is valid for 48h, and allows max 3 attempts at verification.",
+        {
+          "ul": {
+            "li": [
+              {
+                "clink": [
+                  {
+                    "_name": "REGISTRATIONACCEPTED"
+                  },
+                  {
+                    "_name": "CONFIRMAGREEMENT"
+                  }
+                ],
+                "__text": "sent: \n, back:"
+              },
+              {
+                "clink": [
+                  {
+                    "_name": "CHANGEEMAILREQUESTACCEPTED"
+                  },
+                  {
+                    "_name": "CHANGEEMAIL"
+                  }
+                ],
+                "__text": "sent: \n, back:"
+              },
+              {
+                "clink": [
+                  {
+                    "_name": "RESETPASSWORDREQUESTACCEPTED"
+                  },
+                  {
+                    "_name": "RESETPASSWORD"
+                  }
+                ],
+                "__text": "sent: \n, back:"
+              }
+            ]
+          },
+          "clink": {
+            "_name": "RESENDVERIFICATION:client"
+          },
+          "__text": "The following pairs list which commands notify that verification codes were sent, and where they are expected back:\n  \n\n  The code can be re-sent, up to three times, using \n."
+        },
+        "A channel is an IRC-like setting in which users can send messages, which are typically visible to all other users in the same channel. \n  A battle is a special type of channel, with extra properties corresponding to the extra information needed to set up and launch an online multiplayer game of Spring.",
+        "Channels can be either registered or unregistered. Unregistered channels simply forward messages between clients and have no stored settings or data.\n  Registered channels can set topics, password, mutes/bans, store a history, and so on; these data/settings are stored within the server database.",
+        "Each registered channel has a founder who sets the various permanent properties of the channel (such as a password).\n  The founder may also pick channel operators, who are able to handle day-to-day stuff like mutes, topics and bans.",
+        {
+          "url": "https://springrts.com/wiki/ChanServ",
+          "__text": "ChanServ is a fake client, which the server shows as present in all registered channels and battles. \n  It listens for text-based channel commands (listed on \n) and also carries them out.\n  The long term plan is that ChanServ will be replaced with server commands and a client-side GUI."
+        },
+        {
+          "clink": [
+            {
+              "_name": "BRIDGECLIENTFROM"
+            },
+            {
+              "_name": "JOINFROM"
+            },
+            {
+              "_name": "SAYFROM"
+            }
+          ],
+          "__text": "The interface stemming from \n, \n and \n \n  allows users in external chat channels (e.g. Discord, IRC) to join and talk natively within Uberserver channels and battles, via bridge bot. \n  Users talking via a bridge bot are referred to as bridged users."
+        },
+        {
+          "i": [
+            "(location, external_id)",
+            "external_username",
+            "(location, external_username)"
+          ],
+          "__text": "Bridged users are identified to the bridge bot by a \n pair, which should be unique (and should not change when the same user is bridged again).\n  Each external user also has a \n which should be their current username within their location, and such the \n is also unique (e.g. use the screenname on Discord, with the 'extra' #1234 part appended when necessary to achieve uniqueness).\n  At most one bridge bot can bridge users from any given location."
+        },
+        {
+          "i": "external_username:location",
+          "__text": "For non bridge bots, the server identifies bridged users by a username of the form \n for bridged users. \n  Note that the ':' char is not permitted in normal usernames."
+        },
+        {
+          "i": "sync",
+          "clink": {
+            "_name": "JOINBATTLE:server"
+          },
+          "__text": "To be in \n means to have the same versions of all the content\n  required to play a particular game (including the map, engine, dependencies, etc).\n  See \n or the unitsync documentation for details."
+        },
+        {
+          "quote": "Hole punching is a networking technique\n  for establishing communications between two parties in separate organizations\n  who are both behind restrictive firewalls.",
+          "url": "https://en.wikipedia.org/wiki/Hole_punching",
+          "clink": [
+            {
+              "_name": "TASSERVER"
+            },
+            {
+              "_name": "OPENBATTLE"
+            },
+            {
+              "_name": "UDPSOURCEPORT"
+            },
+            {
+              "_name": "CLIENTIPPORT"
+            },
+            {
+              "_name": "HOSTPORT"
+            }
+          ],
+          "__text": "We use it to allow clients to connect to the lobby server, that would otherwise not be able to. \n  See the commands\n  \n,\n  \n,\n  \n,\n  \n,\n  \n."
+        },
+        {
+          "i": [
+            "battleroom",
+            "battle"
+          ],
+          "__text": "Any client may host a \n, also referred to as a \n, which is (effectively) a special type of chat channel with extra features related to setting up and launching a multi-player game.\n  A client may join at most one battleroom at any given time. \n  This includes when the client is hosting the battle. The server automatically enforces this rule."
+        },
+        "Clients detect whether a battle has a game currently in progress by monitoring the hosts status.\n  For example, if the hosts status changes to \"in game\", then the battles is \"in game\".",
+        {
+          "code": "spring.exe",
+          "__text": "uses UDP connections for online multi-player games (TCP is not suitable due to latency).\n  These connections are made between the host client (of the battleroom) and non-host clients. \n  Consequently, the lobby protocol contains a set of commands dedicated to setting up UDP connections between host/non-host clients."
+        },
+        {
+          "clink": {
+            "_name": "UDPSOURCEPORT"
+          },
+          "code": [
+            "spring.exe",
+            "spring.exe",
+            "spring.exe"
+          ],
+          "__text": "Before joining a battle, a client is expected to first acquire their UDP source port from the server.\n  This is done by sending a UDP packet, which a response coming via \n.\n  Once the client has done that, the client should keep sending UDP packets to the server at regular 20 second intervals, \n  to keep the connection alive and ensure that the clients router does not remove the UDP connection from its port translation table.\n  After \n is launched, these UDP keep-alive signals may be discontinued (because then \n will be sending regular UDP packets).\n  Once \n exits, the client should resume sending UDP keep-alive signals."
+        },
+        {
+          "clink": [
+            {
+              "_name": "HOSTPORT"
+            },
+            {
+              "_name": "BATTLEOPENED"
+            }
+          ],
+          "__text": "Just before starting the game, the host should send a \n command to the user,\n  containing the host's public UDP source port.\n  The lobby cient should replace the battles port with this one,\n  as it will have to connect to the game using this port and not the original one\n  (that was acquired through the \n command)."
+        },
+        {
+          "code": "spring.exe",
+          "i": "Todo: make this clearer!",
+          "__text": "Note: If the client is not hosting, then it does not need to \"punch through\", which is does have to do when hosting, because \n will take care of that."
+        },
+        {
+          "clink": {
+            "_name": "OPENBATTLE"
+          },
+          "__text": "Before sending the \n command,\n  the host should try to acquire its UDP source port from the server,\n  just to make sure it can acquire it at all\n  (better to find out it does not work before hosting,\n  than right before starting the game).\n  However, the client does not need to keep this UDP connection alive,\n  since it will not be used to actually host the game.\n  It is just a test to see if UDP connectivity works."
+        },
+        {
+          "clink": {
+            "_name": "CLIENTIPPORT"
+          },
+          "__text": "When a new client joins the battle,\n  the server will send a \n command to the host,\n  informing the host of this client's public UDP source port.\n  The host should remember this information,\n  as he will have to use it when starting the game."
+        },
+        {
+          "clink": {
+            "_name": "HOSTPORT"
+          },
+          "__text": "Right before starting the game,\n  the host should try to acquire his source port again.\n  This time he will actually use this port to host the game.\n  Upon starting the game,\n  the server will notify all clients participating in his battle about his port,\n  using the \n command.\n  The host does not need to keep refreshing his connection\n  to keep the port open,\n  as spring.exe will do that for him.\n  Upon returning from the first game that was hosted in his battleroom,\n  the host does not need to keep refreshing it either (as a client would have to do --\n  because when the host starts a new game\n  it will have to acquire a new source port anyway)."
+        },
+        "This setup exists because some host clients might play \"single-player\" games with bots\n  before opening their battleroom to other players,\n  in which case any UDP port that was originally set up would have long ago timed out (spring.exe would not keep it alive during a single player game!).\n  For this reason, the host has to acquire a new UDP port each time it starts a battle.",
+        {
+          "code": [
+            "protocol.py",
+            "#sy"
+          ],
+          "__text": "If this document doesn't provide what you are looking for, \n  you may have a look at the Uberserver source code, in \n, \n  or ask for help in the \n channel of the SpringRTS lobbyserver."
+        }
+      ],
+      "h4": [
+        "Formating rules: lines, words and sentences",
+        "Legend",
+        "Keep-alive signals",
+        "Zero status assumption",
+        "Status change updates",
+        "Message IDs",
+        "Email Verification",
+        "Channels and Battles",
+        "ChanServ",
+        "Bridge bots",
+        "Syncing",
+        "Hole punching",
+        "Setting up UDP connections: non-host perspective",
+        "Setting up UDP connections: host perspective",
+        "Why?"
+      ]
+    },
+    "CompatFlags": {
+      "clink": {
+        "_name": "LOGIN:client"
+      },
+      "br": [
+        "",
+        ""
+      ],
+      "p": [
+        {
+          "ul": {
+            "li": [
+              {
+                "b": "b",
+                "clink": [
+                  {
+                    "_name": "JOINBATTLEREQUEST"
+                  },
+                  {
+                    "_name": "JOINBATTLEACCEPT"
+                  },
+                  {
+                    "_name": "JOINBATTLEDENY"
+                  }
+                ],
+                "__text": ": \n and \n, \n (this flag is optional)."
+              },
+              {
+                "b": "sp",
+                "__text": ": script passwords"
+              },
+              {
+                "b": "u",
+                "clink": [
+                  {
+                    "_name": "SAY"
+                  },
+                  {
+                    "_name": "SAYFROM"
+                  }
+                ],
+                "__text": ": use \n to talk in battles, support for \n command set."
+              }
+            ]
+          }
+        },
+        "In a small number of cases, the arguments of a command were different in earlier versions of the protocol. \n  The details below refer to the latest dev version of the protocol, and assume that the client has all the latest compatibility flag present."
+      ],
+      "__text": "This list details the current compatibility flags a client may send\n        with the \n command.\n\t\tClients should update their behaviour for compatibility with the changes below, and send the appropriate flag to announce compatibility.\n\t\t\n\n        This list may be emptied when a new protocol version is released, at which point legacy clients may break."
+    },
+    "Versions": {
+      "Version": [
+        {
+          "br": [
+            "",
+            ""
+          ],
+          "_Name": "0.38+dev -- current live version --",
+          "__text": "Nothing new yet!"
+        },
+        {
+          "ul": {
+            "li": [
+              {
+                "b": "u",
+                "ul": {
+                  "li": [
+                    {
+                      "clink": {
+                        "_name": "JOINBATTLE:server"
+                      },
+                      "__text": "sends an extra arg, the name of the channel in which the battle chat takes place."
+                    },
+                    {
+                      "clink": [
+                        {
+                          "_name": "SAY"
+                        },
+                        {
+                          "_name": "SAYEX"
+                        }
+                      ],
+                      "__text": "Use \n and \n to talk in battles i.e. into that channel."
+                    },
+                    "Users joining/leaving a battle are automatical joined/left to its channel."
+                  ]
+                },
+                "__text": "Added \n compat flag, for Battle/Channel merge:"
+              },
+              {
+                "ul": {
+                  "li": [
+                    {
+                      "b": "t",
+                      "clink": {
+                        "_name": "CHANNELTOPIC"
+                      },
+                      "__text": ": \n omits time, empty topic string signifies no topic"
+                    },
+                    {
+                      "b": "l",
+                      "clink": {
+                        "_name": "ADDUSER"
+                      },
+                      "__text": ": args of"
+                    },
+                    {
+                      "b": "cl",
+                      "clink": [
+                        {
+                          "_name": "BATTLEOPENED:server"
+                        },
+                        {
+                          "_name": "OPENBATTLE:client"
+                        }
+                      ],
+                      "__text": ": Engine Name / Engine Version args of \n/"
+                    }
+                  ]
+                },
+                "__text": "The functionality of some previous compat flags is now mandatory for all clients:"
+              },
+              {
+                "ul": {
+                  "li": [
+                    {
+                      "b": "et",
+                      "__text": ": NOCHANNELTOPIC and related"
+                    },
+                    {
+                      "b": "p",
+                      "clink": {
+                        "_name": "AGREEMENT:server"
+                      },
+                      "__text": ": \n, the agreement is sent in plaintext format"
+                    },
+                    {
+                      "b": "cu, sd, m, a",
+                      "__text": ": superceeded or were already no ops"
+                    }
+                  ]
+                },
+                "__text": "Removed support for some deprecated compat flags:\n\t\t\n\n\t  The server no longer expects to be sent these flags."
+              },
+              {
+                "clink": [
+                  {
+                    "_name": "BRIDGECLIENTFROM"
+                  },
+                  {
+                    "_name": "UNBRIDGECLIENTFROM"
+                  },
+                  {
+                    "_name": "JOINFROM"
+                  },
+                  {
+                    "_name": "SAYFROM"
+                  },
+                  {
+                    "_name": "LEAVEFROM"
+                  },
+                  {
+                    "_name": "CLIENTSFROM"
+                  }
+                ],
+                "__text": "Added new interface for bridge bots: \n, \n, \n\t  \n, \n, \n, \n."
+              },
+              {
+                "ul": {
+                  "li": [
+                    {
+                      "clink": {
+                        "_name": "CHANGEEMAIL"
+                      },
+                      "__text": "Added/updated \n command set."
+                    },
+                    {
+                      "clink": {
+                        "_name": "RESENDVERIFICATION"
+                      },
+                      "__text": "Added \n command set."
+                    },
+                    {
+                      "clink": {
+                        "_name": "RESETPASSWORD"
+                      },
+                      "__text": "Added \n command set."
+                    },
+                    {
+                      "ul": {
+                        "li": [
+                          {
+                            "clink": {
+                              "_name": "REGISTER"
+                            },
+                            "__text": "requires an email arg"
+                          },
+                          {
+                            "clink": {
+                              "_name": "CONFIRMAGREEMENT"
+                            },
+                            "__text": "requires a verification code arg"
+                          },
+                          {
+                            "clink": {
+                              "_name": "CHANGEEMAIL"
+                            },
+                            "__text": "requires a verification code arg"
+                          },
+                          {
+                            "clink": {
+                              "_name": "RESETPASSWORD"
+                            },
+                            "__text": "requires a verification code arg"
+                          }
+                        ]
+                      },
+                      "__text": "When email verification is enabled,"
+                    }
+                  ]
+                },
+                "__text": "Added email verification and related features:"
+              },
+              "Replaced the whole moderation interface, with new/updated commands.",
+              {
+                "clink": {
+                  "_name": "STLS"
+                },
+                "__text": "Removed all cypto commands from 0.37. The server now uses TLS, beginning with \n."
+              },
+              "Removed SAYDATA command set.",
+              "Removed SAYBATTLEPRIVATE command set.",
+              "Removed FORCEJOINBATTLE.",
+              "Removed JOINBATTLEREQUEST command set.",
+              "Deprecated SAYBATTLE, SAYBATTLEEX.",
+              "Deprecated MUTE, UNMUTE, MUTELIST, SETCHANNELKEY."
+            ]
+          },
+          "_Name": "0.38"
+        },
+        {
+          "ul": {
+            "li": [
+              {
+                "clink": {
+                  "_name": "NOCHANNELTOPIC:server"
+                },
+                "__text": "Added the \n server command."
+              },
+              {
+                "clink": {
+                  "_name": "IGNORE"
+                },
+                "__text": "Added the \n command set."
+              },
+              "Added crypto commands for secure connections (edit: removed/replaced in 0.38).",
+              "Added the SAYDATA command set (edit: removed in 0.38)."
+            ]
+          },
+          "_Name": "0.37"
+        },
+        {
+          "ul": [
+            {
+              "li": [
+                {
+                  "clink": {
+                    "_name": "LISTCOMPFLAGS:client"
+                  },
+                  "__text": "Added the \n client command."
+                },
+                {
+                  "clink": {
+                    "_name": "COMPFLAGS:server"
+                  },
+                  "__text": "Added the \n server command."
+                },
+                "Added the FORCEJOINBATTLE command set (edit: removed in 0.38).",
+                "Added the CONNECTUSER command set (edit: removed in 0.38).",
+                {
+                  "clink": {
+                    "_name": "CHANGEEMAIL:client"
+                  },
+                  "__text": "Added the \n client command."
+                },
+                {
+                  "clink": {
+                    "_name": "EXIT:client"
+                  },
+                  "__text": "Added the \n client command."
+                },
+                {
+                  "clink": {
+                    "_name": "GETINGAMETIME:client"
+                  },
+                  "__text": "Added the \n client command."
+                },
+                "removed REQUESTUPDATEFILE, OFFERFILE, FORGEREVERSEMSG, USERID, GENERATEUSERID, ACQUIREUSERID",
+                {
+                  "clink": [
+                    {
+                      "_name": "LOGIN"
+                    },
+                    {
+                      "_name": "JOINBATTLE"
+                    },
+                    {
+                      "_name": "JOINEDBATTLE"
+                    }
+                  ],
+                  "__text": "'scriptPassword' argument added: This change affects the following commands:\n        \n, \n, \n."
+                }
+              ]
+            },
+            {
+              "li": {
+                "i": "Compatibility-Flags",
+                "ul": {
+                  "li": {
+                    "b": "sp",
+                    "clink": {
+                      "_name": "JOINEDBATTLE"
+                    },
+                    "__text": ": the scriptPassword parameter, sent in the \n command"
+                  }
+                }
+              }
+            }
+          ],
+          "_Name": "0.36"
+        }
+      ]
+    },
+    "CommandList": {
+      "Command": [
+        {
+          "Description": {
+            "clink": [
+              {
+                "_name": "PONG"
+              },
+              {
+                "_name": "PING"
+              }
+            ],
+            "br": [
+              "",
+              ""
+            ],
+            "__text": "Requests a \n back from the server. \n\t  \n\n\t  Clients should send \n once every 30 seconds, if no other data is being sent to the server. For details, see the notes above on keep-alive signals."
+          },
+          "Response": {
+            "clink": {
+              "_name": "PONG"
+            }
+          },
+          "_Name": "PING",
+          "_Source": "client"
+        },
+        {
+          "Description": {
+            "clink": {
+              "_name": "PING"
+            },
+            "__text": "Sent as the response to a \n command."
+          },
+          "_Name": "PONG",
+          "_Source": "server"
+        },
+        {
+          "Description": "Initiate a TLS connection to the server.",
+          "Response": {
+            "clink": {
+              "_name": "OK"
+            }
+          },
+          "_Name": "STLS",
+          "_Source": "client"
+        },
+        {
+          "Description": {
+            "clink": [
+              {
+                "_name": "STLS"
+              },
+              {
+                "_name": "TASSERVER"
+              }
+            ],
+            "__text": "Sent as the response to a \n command. The client now can now start the tls connection. The server will send again the greeting\n      \n."
+          },
+          "_Name": "OK",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "protocolVersion",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "This is the lobby protocol version used by the server.\n        The client may check if it supports this version before attempting to log in."
+              },
+              {
+                "br": "",
+                "_Name": "springVersion",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Default spring version used on lobby server. Can be locally determinated by calling unitsyncs GetSpringVersion(), IsSpringReleaseVersion() and GetSpringVersionPatchset(),\n        which will return the version, for example \"95.0\" or \"94.1.1-1062-g9d16c2d develop\".\n        \n\n        Note that if the value of this parameter is \"*\",\n        the client should simply ignore it since this means that\n        the server does not contain any updates nor does it require latest Spring version\n        (this is usually the case when the server is running in LAN mode)."
+              },
+              {
+                "_Name": "udpPort",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "This is server UDP port where the \"NAT Help Server\" is running.\n        This is the port to which clients should send their UDP packets\n        when trying to figure out their public UDP source port.\n        This is used with some NAT traversal techniques (e.g. \"hole punching\")."
+              },
+              {
+                "ul": {
+                  "li": [
+                    "0 - normal mode",
+                    "1 - LAN mode"
+                  ]
+                },
+                "_Name": "serverMode",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Tells what mode the server is in.\n        Currently valid are:"
+              }
+            ]
+          },
+          "Description": "This is the first message (i.e. \"greeting message\") that a client receives\n      upon connecting to the server.",
+          "Examples": {
+            "Example": [
+              "TASSERVER 0.35 0.72b1 8201 0",
+              "TASSERVER 0.35 * 8201 0"
+            ]
+          },
+          "_Name": "TASSERVER",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "reason",
+              "_Optional": "yes",
+              "_Sentence": "yes",
+              "__text": "Clients may optionally specify a reason for quitting. \n\t\tIf the user simply wished to exit, many lobby clients send their name and version."
+            }
+          },
+          "Description": "Clients should send this as their last command before severing their connection to the server, to notify\n      a clean and deliberate disconnect.",
+          "Response": {
+            "br": "",
+            "__text": "The server is not required to acknowledge, or respond, to the exiting client. \n\n\t  Other clients via server messages or status change commands."
+          },
+          "_Name": "EXIT",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "password",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "The user's password string. If a client uses a secure session\n          (which means the command itself shall be encrypted, including\n          its arguments), it should send BASE64(password), otherwise it\n          should send BASE64(MD5(password))."
+              },
+              {
+                "_Name": "email",
+                "_Optional": "yes",
+                "_Sentence": "no",
+                "__text": "A valid email address. Case will not be considered."
+              }
+            ]
+          },
+          "Description": {
+            "br": [
+              "",
+              ""
+            ],
+            "__text": "The client sends this command when trying to register a new account.\n      Note that the client must not already be logged in,\n      or else the server will deny his request.\n\t  \n\n\t  \n\n\t  The username and password are given sanity/uniqueness checks, and these primarily determine the servers response. If email verification is enabled, and no valid email address is provided, the server will deny the registration."
+          },
+          "Response": {
+            "clink": [
+              {
+                "_name": "REGISTRATIONDENIED"
+              },
+              {
+                "_name": "REGISTRATIONACCEPTED"
+              }
+            ],
+            "__text": "or \n."
+          },
+          "Examples": {
+            "Example": "REGISTER Johnny Gnmk1g3mcY6OWzJuM4rlMw== enormous_crocodile@hawtmail.com"
+          },
+          "_Name": "REGISTER",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "reason",
+              "_Optional": "no",
+              "_Sentence": "yes"
+            }
+          },
+          "Description": {
+            "clink": {
+              "_name": "REGISTER"
+            },
+            "__text": "Sent in response to a \n command,\n      if registration has been refused."
+          },
+          "_Name": "REGISTRATIONDENIED",
+          "_Source": "server"
+        },
+        {
+          "Description": {
+            "clink": [
+              {
+                "_name": "REGISTER"
+              },
+              {
+                "_name": "CONFIRMAGREEMENT"
+              },
+              {
+                "_name": "LOGIN"
+              }
+            ],
+            "br": [
+              "",
+              "",
+              "",
+              ""
+            ],
+            "__text": "Sent in response to a \n command,\n      if registration has been accepted. \n\t  \n\n\t  If email verification is enabled, sending of this command notifies that the server has sent a verification code to the users email address. This verification code is expected back from the client in \n\n      \n\n\t  Upon reciept of this command, a lobby client would normally be expected to reply with a \n attempt (but this is not a requirement of the protocol)."
+          },
+          "_Name": "REGISTRATIONACCEPTED",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "password",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "The user's password string. If a client uses a secure session\n          (which means the command itself shall be encrypted, including\n          its arguments), it should send BASE64(password), otherwise it\n          should send BASE64(MD5(password))."
+              },
+              {
+                "_Name": "cpu",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "deprecated, set it to 0"
+              },
+              {
+                "_Name": "localIP",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "The client should supply his local IP (e.g. 192.168.x.y, or whatever it uses)\n        so the server can forward local IPs to clients behind the same NAT\n        (this resolves some of the host/joining issues).\n        If the client is unable to determine its local IP,\n        he should send \"*\" instead."
+              },
+              {
+                "_Name": "lobby name and version",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              },
+              {
+                "_Name": "userID",
+                "_Optional": "yes",
+                "_Sentence": "no",
+                "__text": "This is a unique user identification number provided by the client-side software.\n        It has to be an unsigned 32 bit integer which is generated by calculating the crc32\n        from the binary mac address of the primary network interface.\n        If it can't be determinated it has to be set to 0."
+              },
+              {
+                "_Name": "compFlags",
+                "_Optional": "yes",
+                "_Sentence": "yes",
+                "__text": "When connecting, the lobby client can tell the lobby server\n        that it is compatible with some optional functionalities\n        that break backward compatibility.\n        Each flag in this space separated parameter indicates a specific functionality\n        (like IRC user/channel flags).\n        By default, all the optional functionalities are considered as not supported by the client.\n        For the current list of flags, see the section on recent changes."
+              }
+            ]
+          },
+          "Description": {
+            "br": [
+              "",
+              "",
+              "",
+              ""
+            ],
+            "clink": [
+              {
+                "_name": "AGREEMENT"
+              },
+              {
+                "_name": "LOGIN"
+              },
+              {
+                "_name": "CONFIRMAGREEMENT"
+              },
+              {
+                "_name": "LOGININFOEND"
+              }
+            ],
+            "__text": "Sent by a client asking to log on to the server.\n\t  \n\n      Note: if the client has not yet confirmed the user agreement,\n      then server will send the \n to the client as a response to this command.\n\t  In this case the response to \n will be delayed until after \n.\n      \n\n      Also see \n command."
+          },
+          "Response": {
+            "clink": [
+              {
+                "_name": "ACCEPTED"
+              },
+              {
+                "_name": "DENIED"
+              },
+              {
+                "_name": "AGREEMENT"
+              }
+            ],
+            "br": [
+              "",
+              ""
+            ],
+            "__text": "If the client has previously accepted the user agreement: \n or \n. \n\n\t\tIf the client has not already acepted the user agreement: \n.\n\n\t\tSee these commands for further responses."
+          },
+          "Examples": {
+            "Example": [
+              "LOGIN Johnny Gnmk1g3mcY6OWzJuM4rlMw== 3200 192.168.1.100 SpringLobby 0.264",
+              "LOGIN Johnny Gnmk1g3mcY6OWzJuM4rlMw== 3200 * SpringLobby 0.264",
+              {
+                "b": "[TAB]",
+                "__text": "LOGIN Johnny Gnmk1g3mcY6OWzJuM4rlMw== 3200 * SpringLobby 0.264\n123456"
+              },
+              {
+                "b": [
+                  "[TAB]",
+                  "[TAB]"
+                ],
+                "__text": "LOGIN Johnny Gnmk1g3mcY6OWzJuM4rlMw== 3200 * SpringLobby 0.264\n0\na b"
+              }
+            ]
+          },
+          "_Name": "LOGIN",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "userName",
+              "_Optional": "no",
+              "_Sentence": "no"
+            }
+          },
+          "Description": {
+            "clink": [
+              {
+                "_name": "LOGIN"
+              },
+              {
+                "_name": "LOGININFOEND"
+              }
+            ],
+            "ul": {
+              "li": [
+                {
+                  "clink": {
+                    "_name": "MOTD"
+                  },
+                  "__text": "multiple \n, each giving one line of the current welcome message"
+                },
+                {
+                  "clink": {
+                    "_name": "ADDUSER"
+                  },
+                  "__text": "multiple \n, listing all users currently logged in"
+                },
+                {
+                  "clink": [
+                    {
+                      "_name": "BATTLEOPENED"
+                    },
+                    {
+                      "_name": "UPDATEBATTLEINFO"
+                    }
+                  ],
+                  "__text": "multiple \n, \n, detailing the state of all currently open battles"
+                },
+                {
+                  "clink": {
+                    "_name": "JOINEDBATTLE"
+                  },
+                  "__text": "multiple \n, indiciating the clients present in each battle"
+                },
+                {
+                  "clink": {
+                    "_name": "CLIENTSTATUS"
+                  },
+                  "__text": "multiple \n, detailing the statuses of all currently logged in users"
+                }
+              ]
+            },
+            "__text": "Sent as a response to the \n command, if it succeeded.\n      Next, the server will send much info about clients and battles:\n      \n\n\t  Finally, \n      it will send a \n command\n      indicating that it has finished sending all this info. Note that, except for this final command, the commands/info listed above may be sent to the client in any order."
+          },
+          "_Name": "ACCEPTED",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "reason",
+              "_Optional": "no",
+              "_Sentence": "yes"
+            }
+          },
+          "Description": {
+            "clink": {
+              "_name": "LOGIN"
+            },
+            "__text": "Sent as a response to a failed \n command."
+          },
+          "_Name": "DENIED",
+          "_Source": "server"
+        },
+        {
+          "Description": {
+            "clink": {
+              "_name": "ACCEPTED"
+            },
+            "__text": "Sent by the server, indicating that it has finished sending the login info, completing the sequence initiated by"
+          },
+          "_Name": "LOGININFOEND",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "agreement",
+              "_Optional": "no",
+              "_Sentence": "yes",
+              "__text": "The user agreement is sent in \"Text\" format (.txt file streamed via socket)."
+            }
+          },
+          "Description": {
+            "clink": [
+              {
+                "_name": "LOGIN"
+              },
+              {
+                "_name": "AGREEMENTEND"
+              },
+              {
+                "_name": "CONFIRMAGREEMENT"
+              },
+              {
+                "_name": "LOGIN"
+              }
+            ],
+            "__text": "Sent by the server upon receiving a \n command,\n      if the client has not yet agreed to the server's \"terms-of-use\".\n      The server may send multiple AGREEMENT commands, \n      each of corresponds to a new line in the agreement text,\n      finishing with an \n command.\n      The client should send \n\n      and then resend the \n command,\n      or disconnect from the server if he has chosen to refuse the agreement."
+          },
+          "Response": {
+            "clink": {
+              "_name": "AGREEMENTEND"
+            },
+            "__text": "No response is expected until \n is received.\n      See that command for more info."
+          },
+          "_Name": "AGREEMENT",
+          "_Source": "server"
+        },
+        {
+          "Description": {
+            "clink": {
+              "_name": "AGREEMENT"
+            },
+            "__text": "Sent by the server after multiple \n commands.\n      This way, the server tells the client that he has finished sending the agreement\n      (this is the time when the lobby client should popup the \"agreement\" screen\n      and wait for the user to accept/reject it)."
+          },
+          "Response": {
+            "clink": [
+              {
+                "_name": "CONFIRMAGREEMENT"
+              },
+              {
+                "_name": "LOGIN"
+              }
+            ],
+            "__text": "A response is not mandatory, but the server now awaits a \n command from the client, providing that the user agreed to the agreement.\n      Otherwise, the client should disconnect from the server, and restart the \n sequence."
+          },
+          "_Name": "AGREEMENTEND",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "verificationCode",
+              "_Optional": "yes",
+              "_Sentence": "no"
+            }
+          },
+          "Description": "Confirm that the user agreed to the user agreement, and supply an email verification code (if necessary).",
+          "Response": {
+            "clink": [
+              {
+                "_name": "ACCEPTED"
+              },
+              {
+                "_name": "DENIED"
+              }
+            ],
+            "br": "",
+            "__text": ", if the verification was either accepted or was not needed. \n\n\t  \n, if the verification code was not accepted."
+          },
+          "_Name": "CONFIRMAGREEMENT",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "message",
+              "_Optional": "no",
+              "_Sentence": "yes"
+            }
+          },
+          "Description": {
+            "clink": {
+              "_name": "ACCEPTED"
+            },
+            "__text": "Sent by the server after \n.\n       The server may send multiple MOTD commands, each MOTD corresponds to one line of the current welcome message."
+          },
+          "_Name": "MOTD",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "newUsername",
+              "_Optional": "no",
+              "_Sentence": "no"
+            }
+          },
+          "Description": "Will rename the current account name to newUsername.\n      The user has to be logged in for this to work.\n      After the server renames the account, it will disconnect the client.",
+          "Response": {
+            "clink": {
+              "_name": "SERVERMSG"
+            },
+            "__text": "No formal response is required,\n      although the server may reply with a \n."
+          },
+          "Examples": {
+            "Example": "RENAMEACCOUNT Johnny2"
+          },
+          "_Name": "RENAMEACCOUNT",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "oldPassword",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "newPassword",
+                "_Optional": "no",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": "Will change the password of the users's account.",
+          "Response": {
+            "clink": {
+              "_name": "SERVERMSG"
+            },
+            "__text": "No formal response is required,\n      although the server may reply with a \n."
+          },
+          "_Name": "CHANGEPASSWORD",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "newEmail",
+              "_Optional": "no",
+              "_Sentence": "no",
+              "__text": "The email address the user wishes to change too."
+            }
+          },
+          "Description": {
+            "br": [
+              "",
+              ""
+            ],
+            "clink": [
+              {
+                "_name": "CHANGEEMAIL"
+              },
+              {
+                "_name": "CHANGEEMAILREQUESTDENIED"
+              }
+            ],
+            "__text": "Requests a verification code, to be sent to a new email address that the user wishes to associate to their account.\n\t\t\n\n\t\tEven if email verification is disabled, it is intended that the client will call this before calling \n.\n\t\tIf email verification is disabled, the response will be a \n, containing a message informing the user that a blank verification code will be accepted."
+          },
+          "Response": {
+            "clink": [
+              {
+                "_name": "CHANGEEMAILREQUESTDENIED"
+              },
+              {
+                "_name": "CHANGEEMAILREQUESTACCEPTED"
+              }
+            ],
+            "__text": "or"
+          },
+          "_Name": "CHANGEEMAILREQUEST",
+          "_Source": "client"
+        },
+        {
+          "Description": {
+            "clink": [
+              {
+                "_name": "CHANGEEMAILREQUEST"
+              },
+              {
+                "_name": "CHANGEEMAIL"
+              }
+            ],
+            "br": [
+              "",
+              ""
+            ],
+            "__text": "Notifies that a verification code was sent, in response to \n.\n\t\t\n\n\t\tNo response is required from the client, although a \n command would normally be sent once the user has supplied their verification code."
+          },
+          "_Name": "CHANGEEMAILREQUESTACCEPTED",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "errorMsg",
+              "_Optional": "no",
+              "_Sentence": "yes"
+            }
+          },
+          "Description": {
+            "clink": {
+              "_name": "CHANGEEMAILREQUEST"
+            },
+            "__text": "Notifies that a verification code was not sent, in response to \n."
+          },
+          "_Name": "CHANGEEMAILREQUESTDENIED",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "newEmail",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "The email address the user wishes to change too."
+              },
+              {
+                "clink": {
+                  "_name": "CHANGEEMAILREQUESTACCEPTED"
+                },
+                "_Name": "verificationCode",
+                "_Optional": "yes",
+                "_Sentence": "no",
+                "__text": "The verification code recieved as a result of \n."
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "CHANGEEMAILREQUEST"
+            },
+            "__text": "Asks the server to change the email address associated to the client. See also \n, which would typically be called first."
+          },
+          "Response": {
+            "clink": [
+              {
+                "_name": "CHANGEEMAILDENIED"
+              },
+              {
+                "_name": "CHANGEEMAILACCEPTED"
+              }
+            ],
+            "__text": "or"
+          },
+          "_Name": "CHANGEEMAIL",
+          "_Source": "client"
+        },
+        {
+          "Description": {
+            "clink": {
+              "_name": "CHANGEEMAIL"
+            },
+            "__text": "Notifies that client that their email address was changed, in response to \n."
+          },
+          "_Name": "CHANGEEMAILACCEPTED",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "errorMsg",
+              "_Optional": "no",
+              "_Sentence": "yes"
+            }
+          },
+          "Description": {
+            "clink": {
+              "_name": "CHANGEEMAIL"
+            },
+            "__text": "Notifies that the email address could not be changed, in response to \n."
+          },
+          "_Name": "CHANGEEMAILDENIED",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "newEmail",
+              "_Optional": "no",
+              "_Sentence": "no",
+              "__text": "The email address the user wished to change too, or register with, but has forgotten/lost/eaten or not recieved their verification code for."
+            }
+          },
+          "Description": "Request that an active verification code to be re-sent.",
+          "Response": {
+            "clink": [
+              {
+                "_name": "RESENDVERIFICATIONDENIED"
+              },
+              {
+                "_name": "RESENDVERIFICATIONACCEPTED"
+              }
+            ],
+            "__text": "or"
+          },
+          "_Name": "RESENDVERIFICATION",
+          "_Source": "client"
+        },
+        {
+          "Description": {
+            "clink": {
+              "_name": "RESENDVERIFICATION"
+            },
+            "__text": "Notifies that a verification code was re-sent, in response to \n."
+          },
+          "_Name": "RESENDVERIFICATIONACCEPTED",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "errorMsg",
+              "_Optional": "no",
+              "_Sentence": "yes"
+            }
+          },
+          "Description": {
+            "clink": {
+              "_name": "RESENDVERIFICATION"
+            },
+            "__text": "Notifies that a verification code was not re-sent, in response to \n."
+          },
+          "_Name": "RESENDVERIFICATIONDENIED",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "email",
+              "_Optional": "no",
+              "_Sentence": "no",
+              "__text": "The email address associated to the acccount."
+            }
+          },
+          "Description": "Requests a verification code, to be sent to the email address of a user wishing to reset their password.",
+          "Response": {
+            "clink": [
+              {
+                "_name": "RESETPASSWORDREQUESTACCEPTED"
+              },
+              {
+                "_name": "RESETPASSWORDREQUESTDENIED"
+              }
+            ],
+            "__text": "or"
+          },
+          "_Name": "RESETPASSWORDREQUEST",
+          "_Source": "client"
+        },
+        {
+          "Description": {
+            "clink": [
+              {
+                "_name": "RESETPASSWORDREQUEST"
+              },
+              {
+                "_name": "RESETPASSWORD"
+              }
+            ],
+            "br": [
+              "",
+              ""
+            ],
+            "__text": "Notifies that a verification code was sent, in response to \n.\n\t\t\n\n\t\tNo response is required from the client, although a \n command would normally be sent."
+          },
+          "_Name": "RESETPASSWORDREQUESTACCEPTED",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "errorMsg",
+              "_Optional": "no",
+              "_Sentence": "yes"
+            }
+          },
+          "Description": {
+            "clink": {
+              "_name": "RESETPASSWORDREQUEST"
+            },
+            "__text": "Notifies that a verification code was not sent, in response to \n."
+          },
+          "_Name": "RESETPASSWORDREQUESTDENIED",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "email",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "The email address the user wishes to change too."
+              },
+              {
+                "clink": {
+                  "_name": "RESETPASSWORDREQUESTACCEPTED"
+                },
+                "_Name": "verificationCode",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "The verification code recieved as a result of \n."
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "RESETPASSWORDREQUEST"
+            },
+            "__text": "Asks the server to change the password associated to the client. See also \n, which would typically be called first."
+          },
+          "Response": {
+            "clink": [
+              {
+                "_name": "RESETPASSWORDDENIED"
+              },
+              {
+                "_name": "RESETPASSWORDACCEPTED"
+              }
+            ],
+            "__text": "or"
+          },
+          "_Name": "RESETPASSWORD",
+          "_Source": "client"
+        },
+        {
+          "Description": {
+            "clink": {
+              "_name": "RESETPASSWORD"
+            },
+            "__text": "Notifies that client that their password was changed, in response to \n. The new password will be emailed to the client."
+          },
+          "_Name": "RESETPASSWORDACCEPTED",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "errorMsg",
+              "_Optional": "no",
+              "_Sentence": "yes"
+            }
+          },
+          "Description": {
+            "clink": {
+              "_name": "RESETPASSWORD"
+            },
+            "__text": "Notifies that the password could not be changed, in response to \n."
+          },
+          "_Name": "RESETPASSWORDDENIED",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "url": "http://www.iso.org/iso/en/prods-services/iso3166ma/index.html",
+                "_Name": "country",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "A two-character country code based on ISO 3166 standard.\n        See"
+              },
+              {
+                "clink": {
+                  "_name": "LOGIN"
+                },
+                "_Name": "cpu",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "deprecated, see the \n command."
+              },
+              {
+                "_Name": "userID",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "lobbyID",
+                "_Optional": "no",
+                "_Sentence": "yes",
+                "__text": "A string of text sent by the client, typically identifying the lobby client they are using."
+              }
+            ]
+          },
+          "Description": "Tells the client that a new user joined a server.\n      The client should add this user to his clients list,\n      which he must maintain while he is connected to the server.",
+          "_Name": "ADDUSER",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "userName",
+              "_Optional": "no",
+              "_Sentence": "no"
+            }
+          },
+          "Description": "Indicates that a user disconnected from the server.\n      The client should remove this user from his clients list,\n      which he must maintain while he is connected to the server.",
+          "_Name": "REMOVEUSER",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "message",
+              "_Optional": "no",
+              "_Sentence": "yes"
+            }
+          },
+          "Description": "A general purpose message sent by the server.\n      The lobby client program should display this message to the user in a non-invasive way, but clearly visible to the user \n\t  (for example, as a SAYEX-style message from the server, printed into all the users chat panels).",
+          "Examples": {
+            "Example": "SERVERMSG Server is going down in 5 minutes for a restart, due to a new update."
+          },
+          "_Name": "SERVERMSG",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "message",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              },
+              {
+                "_Name": "url",
+                "_Optional": "yes",
+                "_Sentence": "yes",
+                "__text": "If specified, the lobby client should ask the user\n        if he wants this URL to be opened in a browser window.\n        The lobby client should then (once the user clicked OK)\n        launch the default browser and open this URL in there."
+              }
+            ]
+          },
+          "Description": "The lobby client program should display this message to the user in an invasive way, which requires response from the user (for example, in a dialogue box with an OK button).",
+          "_Name": "SERVERMSGBOX",
+          "_Source": "server"
+        },
+        {
+          "Description": "Sent by a client when requesting the list of all channels on the server",
+          "Response": {
+            "clink": [
+              {
+                "_name": "CHANNEL"
+              },
+              {
+                "_name": "ENDOFCHANNELS"
+              }
+            ],
+            "__text": "A series of \n commands,\n      followed by an \n command."
+          },
+          "Examples": {
+            "Example": "JOIN main"
+          },
+          "_Name": "CHANNELS",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "chanName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "userCount",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Number of users in the channel."
+              },
+              {
+                "_Name": "topic",
+                "_Optional": "yes",
+                "_Sentence": "yes",
+                "__text": "Is omited if the topic is not set for the channel."
+              }
+            ]
+          },
+          "Description": {
+            "clink": [
+              {
+                "_name": "CHANNELS"
+              },
+              {
+                "_name": "ENDOFCHANNELS"
+              }
+            ],
+            "__text": "Sent by the server to a client who requested the channels list\n    via the \n command.\n    A series of these commands will be sent to the client,\n    one for each open channel.\n    A series of CHANNEL commands is followed by the \n command."
+          },
+          "_Name": "CHANNEL",
+          "_Source": "server"
+        },
+        {
+          "Description": {
+            "clink": {
+              "_name": "CHANNEL"
+            },
+            "__text": "Sent to a client who previously requested the channel list,\n      after a series of \n commands (one for each channel)."
+          },
+          "_Name": "ENDOFCHANNELS",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "chanName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "key",
+                "_Optional": "yes",
+                "_Sentence": "no",
+                "__text": "If the channel is locked, non-priviledged clients must supply the correct key to join."
+              }
+            ]
+          },
+          "Description": "Sent by a client requesting to join a channel.",
+          "Response": {
+            "clink": [
+              {
+                "_name": "JOIN:server"
+              },
+              {
+                "_name": "JOINFAILED"
+              }
+            ],
+            "__text": "or \n. See there for further responses."
+          },
+          "Examples": {
+            "Example": "JOIN moddev"
+          },
+          "_Name": "JOIN",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "chanName",
+              "_Optional": "no",
+              "_Sentence": "no",
+              "__text": "Name of the channel which the client has just joined"
+            }
+          },
+          "Description": {
+            "clink": [
+              {
+                "_name": "JOIN:client"
+              },
+              {
+                "_name": "CLIENTS"
+              },
+              {
+                "_name": "CLIENTSFROM"
+              }
+            ],
+            "__text": "Sent to a client who has successfully \ned a channel. \n\t  The server will now send the client a \n and a \n command, which together give the list of users present in the channel."
+          },
+          "Examples": {
+            "Example": "JOIN main"
+          },
+          "_Name": "JOIN",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "chanName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "reason",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              }
+            ]
+          },
+          "Description": "Sent if joining a channel failed for some reason.",
+          "_Name": "JOINFAILED",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "chanName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "author",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "topic",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "JOIN"
+            },
+            "__text": "Sent to a client who just \ned a channel, or who was already present in a channel when the topic was changed.\n      This command informs the client of the current channel topic."
+          },
+          "_Name": "CHANNELTOPIC",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "chanName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "topic",
+                "_Optional": "no",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": "A request to change a channel's topic, typically sent by a priviledged user.",
+          "_Name": "CHANNELTOPIC",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "chanName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "clients",
+                "_Optional": "no",
+                "_Sentence": "yes",
+                "__text": "A sentence in which each word is the username of a client present in the channel."
+              }
+            ]
+          },
+          "Description": {
+            "br": [
+              "",
+              ""
+            ],
+            "clink": [
+              {
+                "_name": "CLIENTSFROM"
+              },
+              {
+                "_name": "CLIENTS"
+              }
+            ],
+            "__text": "Sent to a client who just joined the channel. This command informs the client of the list of users present in the channel, including the client itself.\n\t  \n\n\t  This command is always sent (to a client joining a channel), and the list it conveys includes the newly joined client. \n\t  It is sent after all the \n commands.\n\t  Once \n has been processed, the joining client has been informed of the full list of other clients and bridged clients currently present in the joined channel."
+          },
+          "_Name": "CLIENTS",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "chanName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": "Sent to all clients in a channel (except the new client)\n      when a new user joins the channel.",
+          "_Name": "JOINED",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "chanName",
+              "_Optional": "no",
+              "_Sentence": "no"
+            }
+          },
+          "Description": {
+            "br": [
+              "",
+              ""
+            ],
+            "__text": "Sent by a client when requesting to leave a channel.\n      \n\n\t  Note that when the client is disconnected, the client is automatically removed from all channels."
+          },
+          "Response": {
+            "clink": [
+              {
+                "_name": "LEFT"
+              },
+              {
+                "_name": "LEAVE"
+              }
+            ],
+            "__text": "None. The server will broadcast the \n command to all users in the channel, including the user who sent the \n command."
+          },
+          "_Name": "LEAVE",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "chanName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "reason",
+                "_Optional": "yes",
+                "_Sentence": "yes"
+              }
+            ]
+          },
+          "Description": "Sent by the server to inform a client, present in a channel, that another user or himself has left that channel.",
+          "_Name": "LEFT",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "chanName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "message",
+                "_Optional": "no",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": "Sent by the server to all clients in a channel.\n      Used to broadcast messages in a channel.",
+          "_Name": "CHANNELMESSAGE",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "chanName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "message",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              }
+            ]
+          },
+          "Description": "Send a chat message to a specific channel.\n      The client has to join the channel first,\n      to be allowed to use this command.",
+          "Response": {
+            "clink": {
+              "_name": "SAID:server"
+            },
+            "br": "",
+            "i": {
+              "clink": {
+                "_name": "FAILED"
+              },
+              "__text": "If the request to speak is denied, a \n command will be sent in JSON format."
+            },
+            "__text": "See \n."
+          },
+          "_Name": "SAY",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "chanName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "message",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              }
+            ]
+          },
+          "Description": "Sent to all clients participating in a specific channel\n      when one of the clients sent a chat message to it\n      (including the author of the message).",
+          "_Name": "SAID",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "chanName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "message",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "SAY:client"
+            },
+            "__text": "Sent by any client requesting to say something in a channel in \"/me\" IRC style.\n      (The \n command is used for normal chat messages.)"
+          },
+          "Response": {
+            "clink": {
+              "_name": "SAIDEX:server"
+            },
+            "br": "",
+            "i": {
+              "clink": {
+                "_name": "FAILED"
+              },
+              "__text": "If the request to speak is denied, a \n command will be sent in JSON format."
+            },
+            "__text": "See \n."
+          },
+          "_Name": "SAYEX",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "chanName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "message",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "SAYEX:client"
+            },
+            "__text": "Sent by the server when a client said something\n      using the \n command."
+          },
+          "_Name": "SAIDEX",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "message",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              }
+            ]
+          },
+          "Description": "Send a private chat message to an other client.",
+          "Response": {
+            "clink": [
+              {
+                "_name": "SAYPRIVATE:server"
+              },
+              {
+                "_name": "SAIDPRIVATE:server"
+              }
+            ],
+            "__text": "and"
+          },
+          "_Name": "SAYPRIVATE",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "message",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "SAYPRIVATE:client"
+            },
+            "__text": "Sent to a client that just sent a \n command.\n      This notifies the client that the server sent the private message on to its intended recipient."
+          },
+          "_Name": "SAYPRIVATE",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "message",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              }
+            ]
+          },
+          "Description": "Sends a private message on to its intended recipient.",
+          "_Name": "SAIDPRIVATE",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "message",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "SAYPRIVATE:client"
+            },
+            "__text": "Sent by a client requesting to say something in \"/me\" IRC style in a private message.\n      (Normal chat messages are sent via the \n command.)"
+          },
+          "Response": {
+            "clink": [
+              {
+                "_name": "SAYPRIVATEEX:server"
+              },
+              {
+                "_name": "SAIDPRIVATE:server"
+              }
+            ],
+            "__text": "and"
+          },
+          "_Name": "SAYPRIVATEEX",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "message",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "SAYPRIVATE:client"
+            },
+            "__text": "Sent to a client that just sent a \n command.\n      This notifies the client that the server sent the private message on to its intended recipient."
+          },
+          "_Name": "SAYPRIVATEEX",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "message",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              }
+            ]
+          },
+          "Description": "Sends a private message in \"/me\" IRC style on to its intended recipient.",
+          "_Name": "SAIDPRIVATEEX",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "chanName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "lastID",
+                "_Optional": "no",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": "Sent by a client requesting the history of a channel, since the lastID.",
+          "Response": {
+            "clink": [
+              {
+                "_name": "SAID"
+              },
+              {
+                "_name": "JSON"
+              }
+            ],
+            "__text": "The server will respond with a sequence of \n commands via the \n command, one for each chat message requested (up to a two week limit)."
+          },
+          "_Name": "GETCHANNELMESSAGES",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "location",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "'discord', for example. Battle hosts bridging ingame users should use their own name username as the location."
+              },
+              {
+                "_Name": "externalID",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "A string which unqiuely identifies the external client, within its specified location, and which will not change if the external client changes username."
+              },
+              {
+                "_Name": "externalUsername",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "The current username of the external client, in its external location."
+              }
+            ]
+          },
+          "Description": "Sent by a bridge bot notifying the server of a new bridged client.",
+          "Response": {
+            "clink": [
+              {
+                "_name": "FAILED"
+              },
+              {
+                "_name": "BRIDGEDCLIENTFROM:server"
+              }
+            ],
+            "__text": "The server will reply with either \n or \n."
+          },
+          "_Name": "BRIDGECLIENTFROM",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "location",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "externalID",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "externalUsername",
+                "_Optional": "no",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "BRIDGECLIENTFROM"
+            },
+            "br": [
+              "",
+              ""
+            ],
+            "__text": "Sent by the server in response to a successful \n command.\n\t  \n\n\t  The server will use 'externalUser:location' as the username for the bridged client."
+          },
+          "_Name": "BRIDGEDCLIENTFROM",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "location",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "externalID",
+                "_Optional": "no",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": "Sent by a bridge bot notifying the server that a bridged client has left the bridge.",
+          "Response": {
+            "clink": [
+              {
+                "_name": "FAILED"
+              },
+              {
+                "_name": "UNBRIDGEDCLIENTFROM:server"
+              }
+            ],
+            "__text": "The server will reply with either \n or \n."
+          },
+          "_Name": "UNBRIDGECLIENTFROM",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "location",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "externalID",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "externalUsername",
+                "_Optional": "no",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "UNBRIDGECLIENTFROM"
+            },
+            "__text": "Sent by the server in response to a successful \n command."
+          },
+          "_Name": "UNBRIDGEDCLIENTFROM",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "chan",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "location",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "externalID",
+                "_Optional": "no",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": "Send by a bridge bot requesting to join a bridged client to a channel.",
+          "Response": {
+            "clink": [
+              {
+                "_name": "FAILED"
+              },
+              {
+                "_name": "UNBRIDGECLIENTFROM:server"
+              }
+            ],
+            "__text": "The server will reply with either \n or \n."
+          },
+          "_Name": "JOINFROM",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "chan",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "bridge",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "The username of the bridge bot for this bridged client."
+              },
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "This will have the form externalUsername:location."
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "JOINFROM"
+            },
+            "__text": "Sent by the server in response to a successful \n command."
+          },
+          "_Name": "JOINEDFROM",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "chan",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "location",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "externalID",
+                "_Optional": "no",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": "Sent by a bridge bot requesting to remove a bridged client from a channel.",
+          "Response": {
+            "clink": [
+              {
+                "_name": "FAILED"
+              },
+              {
+                "_name": "LEFTFROM:server"
+              }
+            ],
+            "__text": "The server will reply with either \n or \n."
+          },
+          "_Name": "LEAVEFROM",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "chan",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "This will have the form externalUsername:location."
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "LEFTFROM"
+            },
+            "__text": "Sent by the server in response to a successful \n command."
+          },
+          "_Name": "LEFTFROM",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "chan",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "location",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "externalID",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "message",
+                "_Optional": "yes",
+                "_Sentence": "yes "
+              }
+            ]
+          },
+          "Description": "Sent by a bridge bot to notify that a bridged user spoke into a channel.",
+          "Response": {
+            "clink": [
+              {
+                "_name": "FAILED"
+              },
+              {
+                "_name": "SAIDFROM:server"
+              }
+            ],
+            "__text": "The server will reply with either \n or \n."
+          },
+          "_Name": "SAYFROM",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "chan",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "This will have the form externalUsername:location."
+              },
+              {
+                "_Name": "message",
+                "_Optional": "yes",
+                "_Sentence": "yes"
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "SAYFROM"
+            },
+            "__text": "Sent by the server in response to a successful \n command."
+          },
+          "_Name": "SAIDFROM",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "chan",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "bridge",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "The username of the bridge bot for the following clients."
+              },
+              {
+                "_Name": "clients",
+                "_Optional": "no",
+                "_Sentence": "yes",
+                "__text": "A list of usernames of clients who are bridged into this channel."
+              }
+            ]
+          },
+          "Description": "Sent by the server to a (non-bridged) client who just joined a channel.",
+          "_Name": "CLIENTSFROM",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "type",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Can be 0 or 1 (0 = normal battle, 1 = battle replay)"
+              },
+              {
+                "_Name": "natType",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "NAT traversal method used by the host.\n        Must be one of:\n        0: none\n        1: Hole punching\n        2: Fixed source ports"
+              },
+              {
+                "_Name": "password",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Must be \"*\" if founder does not wish to have password-protected game."
+              },
+              {
+                "_Name": "port",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "maxPlayers",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "gameHash",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "A signed 32-bit integer (acquired via the unitsync library)."
+              },
+              {
+                "_Name": "rank",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "The minimum rank required for a client in the battle to be allowed to become a player."
+              },
+              {
+                "_Name": "mapHash",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "A signed 32-bit integer (acquired via the unitsync library)."
+              },
+              {
+                "_Name": "engineName",
+                "_Optional": "no",
+                "_Sentence": "yes",
+                "__text": "Use 'Spring'"
+              },
+              {
+                "clink": {
+                  "_name": "TASSERVER:server"
+                },
+                "_Name": "engineVersion",
+                "_Optional": "no",
+                "_Sentence": "yes",
+                "__text": "For example: '94.1.1-1062-g9d16c2d develop', same format as in"
+              },
+              {
+                "_Name": "map",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              },
+              {
+                "_Name": "title",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              },
+              {
+                "_Name": "gameName",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              }
+            ]
+          },
+          "Description": {
+            "br": [
+              "",
+              ""
+            ],
+            "__text": "Sent by the client requesting to open a new battle. \n      If the command is successful, the client becomes the founder (i.e. host) of the new battle.\n\t  \n\n\t  Clients without botflags will have their maxPlayers capped at 10; \n\t  the founding client will be informed via a server message if the server applies this limitation."
+          },
+          "Response": {
+            "clink": [
+              {
+                "_name": "BATTLEOPENED"
+              },
+              {
+                "_name": "OPENBATTLE:server"
+              },
+              {
+                "_name": "OPENBATTLEFAILED:server"
+              }
+            ],
+            "br": "",
+            "__text": "If accepted: \n and \n\n\t  If denied:"
+          },
+          "_Name": "OPENBATTLE",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "reason",
+              "_Optional": "no",
+              "_Sentence": "yes"
+            }
+          },
+          "Description": "Informs a client that tried to open a battle that their request has been rejected.",
+          "_Name": "OPENBATTLEFAILED",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "battleID",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "type",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Can be 0 or 1 (0 = normal battle, 1 = battle replay)"
+              },
+              {
+                "_Name": "natType",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "NAT traversal method used by the host.\n        Must be one of:\n        0: none\n        1: Hole punching\n        2: Fixed source ports"
+              },
+              {
+                "_Name": "founder",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Username of the client who started this battle."
+              },
+              {
+                "_Name": "ip",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "port",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "maxPlayers",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "passworded",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "A boolean - must be \"0\" (meaning false) or \"1\"!"
+              },
+              {
+                "_Name": "rank",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "mapHash",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "A signed 32-bit integer (acquired via the unitsync library)."
+              },
+              {
+                "_Name": "engineName",
+                "_Optional": "no",
+                "_Sentence": "yes",
+                "__text": "For example: 'my spring'"
+              },
+              {
+                "clink": {
+                  "_name": "TASSERVER:server"
+                },
+                "_Name": "engineVersion",
+                "_Optional": "no",
+                "_Sentence": "yes",
+                "__text": "For example: '94.1.1-1062-g9d16c2d develop', See also"
+              },
+              {
+                "_Name": "map",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              },
+              {
+                "_Name": "title",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              },
+              {
+                "_Name": "gameName",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              },
+              {
+                "_Name": "channel",
+                "_Optional": "no",
+                "_Sentence": "yes",
+                "__text": "The name of the channel (which will contain no whitespace) in which the chat for this battle takes place. By convention, these channels have names of the form __battle__1234."
+              }
+            ]
+          },
+          "Description": "Sent by the server to all registered users, when a new battle becomes open.",
+          "_Name": "BATTLEOPENED",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "battleID",
+              "_Optional": "no",
+              "_Sentence": "no"
+            }
+          },
+          "Description": {
+            "clink": [
+              {
+                "_name": "OPENBATTLE:client"
+              },
+              {
+                "_name": "BATTLEOPENED"
+              },
+              {
+                "_name": "OPENBATTLE:client"
+              },
+              {
+                "_name": "JOINBATTLE:server"
+              },
+              {
+                "_name": "REQUESTBATTLESTATUS"
+              }
+            ],
+            "br": [
+              "",
+              "",
+              "",
+              ""
+            ],
+            "i": "before",
+            "__text": "Sent to a client who previously sent an \n command,\n      if the client's request to open a new battle has been approved. \n\t  \n\n\t  Note that the corresponding \n command is sent \n this command is used to reflect the successful \n command back to the client.\n\t  \n\n      After sending this command, the server will send a \n (to notify the founding client that they have joined their own battle) followed by a \n."
+          },
+          "_Name": "OPENBATTLE",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "battleID",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "password",
+                "_Optional": "yes",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "scriptPassword",
+                "_Optional": "yes",
+                "_Sentence": "no",
+                "__text": "A random, client-generated string (which is used to avoid account spoofing ingame, and will appear in script.txt).\n        Note that if this argument is sent, a password must be sent too. If the battle is not passworded then an empty password should be sent."
+              }
+            ]
+          },
+          "Description": "Sent by a client requesting to join a battle.",
+          "Response": {
+            "clink": [
+              {
+                "_name": "JOINBATTLE:server"
+              },
+              {
+                "_name": "JOINBATTLEFAILED"
+              },
+              {
+                "_name": "JOINBATTLEREQUEST"
+              }
+            ],
+            "__text": "The server will reply to the client with either \n or \n. \n\t  In order to determine which response is given, the server may send a \n to the battle founder, and wait for the reply."
+          },
+          "_Name": "JOINBATTLE",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "battleID",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "hashCode",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "A signed 32-bit integer (acquired via the unitsync library).\n  \t    This code is computed using the current map, game, and other dependencies.\n\t    It is used to check that the client has correct non-corrupt downloads of the required content."
+              },
+              {
+                "_Name": "channelName",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "The name of the chat channel used for this battle."
+              }
+            ]
+          },
+          "Description": {
+            "clink": [
+              {
+                "_name": "JOINBATTLE:client"
+              },
+              {
+                "_name": "JOINEDBATTLE"
+              },
+              {
+                "_name": "DISABLEUNITS"
+              },
+              {
+                "_name": "ADDBOT"
+              },
+              {
+                "_name": "ADDSTARTRECT"
+              },
+              {
+                "_name": "SETSCRIPTTAGS"
+              },
+              {
+                "_name": "CLIENTBATTLESTATUS"
+              },
+              {
+                "_name": "CLIENTIPPORT"
+              }
+            ],
+            "br": [
+              "",
+              "",
+              "",
+              "",
+              "",
+              ""
+            ],
+            "i": "Someone who knows more about this should write more!",
+            "__text": "Notifies a client that their request to \n was successful, and that they have just joined the battle.\n      \n\n\t  Clients in the battle will be notified of the new user via \n.\n\t  \n      \n\t  Next, the server will send a series of commands to the newly joined client, which might include \n, \n, \n, \n and so on, \n\t  along with multiple \n, in order to describe the current state of the battle to the joining client.\n\t  \n\n\t  If the battle has natType>0, the server will also send the clients IP port to the host, via the \n command."
+          },
+          "_Name": "JOINBATTLE",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "ip",
+                "_Optional": "no",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": "Sent by the server to a battle host, each time a client requests to join his battle.",
+          "Response": {
+            "clink": [
+              {
+                "_name": "JOINBATTLEACCEPT"
+              },
+              {
+                "_name": "JOINBATTLEDENY"
+              }
+            ],
+            "__text": "The battle host should reply with either \n\n      or \n."
+          },
+          "_Name": "JOINBATTLEREQUEST",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "userName",
+              "_Optional": "no",
+              "_Sentence": "no"
+            }
+          },
+          "Description": {
+            "clink": {
+              "_name": "JOINBATTLEREQUEST"
+            },
+            "__text": "Sent by a battle host, in response to a \n command,\n      instructing the server to allow the user to join their battle."
+          },
+          "_Name": "JOINBATTLEACCEPT",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "reason",
+                "_Optional": "yes",
+                "_Sentence": "yes"
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "JOINBATTLEREQUEST"
+            },
+            "__text": "Sent by a battle host, in response to a \n command,\n      instructing the server to disallow the user to join their battle."
+          },
+          "_Name": "JOINBATTLEDENY",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "reason",
+              "_Optional": "no",
+              "_Sentence": "yes"
+            }
+          },
+          "Description": {
+            "clink": {
+              "_name": "JOINBATTLE:client"
+            },
+            "__text": "Notifies a client that their request to \n was denied."
+          },
+          "_Name": "JOINBATTLEFAILED",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "battleID",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "scriptPassword",
+                "_Optional": "yes",
+                "_Sentence": "no",
+                "__text": "A random, client-generated string,\n        wich will be written to script.txt by the host,\n        to avoid account spoofing\n        (= someone is trying to join the battle under a wrong user-name)."
+              }
+            ]
+          },
+          "Description": {
+            "br": [
+              "",
+              ""
+            ],
+            "__text": "Sent by the server to all clients when a new client joins the battle. \n\n\t  The server does not send this command for a host, when that host opens its own battle."
+          },
+          "_Name": "JOINEDBATTLE",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "battleID",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": "Sent by the server to all users when a client left a battle\n      (or got disconnected from the server).",
+          "_Name": "LEFTBATTLE",
+          "_Source": "server"
+        },
+        {
+          "Description": {
+            "br": [
+              "",
+              ""
+            ],
+            "__text": "Sent by the client when he leaves a battle.\n\t  \n\n      When this command is by the founder of a battle, it notifies that the battle is now closed."
+          },
+          "Response": {
+            "clink": {
+              "_name": "BATTLECLOSED"
+            },
+            "__text": "If sent by the founder, \n."
+          },
+          "_Name": "LEAVEBATTLE",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "battleID",
+              "_Optional": "no",
+              "_Sentence": "no"
+            }
+          },
+          "Description": "Sent to all users to notify that a battle has been closed.",
+          "_Name": "BATTLECLOSED",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "port",
+              "_Optional": "no",
+              "_Sentence": "no"
+            }
+          },
+          "Description": {
+            "br": "",
+            "i": "Someone who knows more about this should document it!",
+            "__text": "Sent as a response to a client's UDP packet\n      (used with \"hole punching\" NAT traversal technique)."
+          },
+          "Examples": {
+            "Example": "UDPSOURCEPORT 52361"
+          },
+          "_Name": "UDPSOURCEPORT",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "ip",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "port",
+                "_Optional": "no",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": "Sent to the battle's host, notifying him about another client's IP address\n      and his public UDP source port.",
+          "_Name": "CLIENTIPPORT",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "port",
+              "_Optional": "no",
+              "_Sentence": "no"
+            }
+          },
+          "Description": "Sent by the server to all clients participating in the battle, except for the host, notifying them about the (possibly new) host port.",
+          "_Name": "HOSTPORT",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "battleID",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "spectatorCount",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Assume that spectator count is 0,\n        if battle type is 0 (normal battle)\n        and 1 if battle type is 1 (battle replay),\n        as the founder of the battle is automatically set as a spectator in that case."
+              },
+              {
+                "_Name": "locked",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "A boolean (\"0\" (for false) or \"1\").\n        Note that when the client creates a battle,\n        the server assumes it is unlocked (by default).\n        The client must make sure it assumes this same default."
+              },
+              {
+                "clink": {
+                  "_name": "OPENBATTLE"
+                },
+                "_Name": "mapHash",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "A signed 32-bit integer.\n        See the \n command for more info."
+              },
+              {
+                "_Name": "mapName",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "SETSCRIPTTAGS:server"
+            },
+            "__text": "Sent by the server to all registered clients,\n      telling them some of the parameters of the battle changed.\n      A battle's internal changes,\n      like starting metal, energy, starting position etc.,\n      are sent only to clients participating in the battle\n      (via the \n command)."
+          },
+          "_Name": "UPDATEBATTLEINFO",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "spectatorCount",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "locked",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "A boolean (\"0\" (for false) or \"1\").\n        Note that when the client creates a battle,\n        the server assumes it is unlocked (by default).\n        The client must make sure it assumes this same default."
+              },
+              {
+                "clink": {
+                  "_name": "OPENBATTLE"
+                },
+                "_Name": "mapHash",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "A signed 32-bit integer.\n        See the \n command for more info."
+              },
+              {
+                "_Name": "mapName",
+                "_Optional": "no",
+                "_Sentence": "yes",
+                "__text": "Must NOT contain the file extension!"
+              }
+            ]
+          },
+          "Description": "Sent by the founder of the battle,\n      telling the server that some of the \"external\" parameters of the battle changed.",
+          "_Name": "UPDATEBATTLEINFO",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "ul": {
+                "li": [
+                  "b0 = in game (0 - normal, 1 - in game)",
+                  "b1 = away status (0 - normal, 1 - away)",
+                  "b2-b4 = rank (see Account class implementation for description of rank) - client is not\n              allowed to change rank bits himself (only server may set them).",
+                  "b5 = access status (tells us whether this client is a server moderator or not) - client is not\n              allowed to change this bit himself (only server may set them).",
+                  "b6 = bot mode (0 - normal user, 1 - automated bot). This bit is copied from user's account\n              and can not be changed by the client himself. Bots differ from human players in that\n              they are fully automated and that some anti-flood limitations do not apply to them."
+                ]
+              },
+              "_Name": "status",
+              "_Optional": "no",
+              "_Sentence": "no",
+              "__text": "A signed integer in text form (e.g. \"1234\").\n        Each bit has its meaning:"
+            }
+          },
+          "Description": {
+            "br": [
+              "",
+              ""
+            ],
+            "__text": "Sent by a client to inform the server about his changed status.\n      \n\n\t  Note: To tell out if a battle is \"in-game\", a client must check the in-game status of the host."
+          },
+          "Response": {
+            "clink": [
+              {
+                "_name": "CLIENTSTATUS"
+              },
+              {
+                "_name": "HOSTPORT"
+              }
+            ],
+            "br": [
+              "",
+              ""
+            ],
+            "__text": "The status change will be communicated to relevant users via \n commands.\n\n\t  If a battle founder changes from being not in-game to being in-game, \n commands will be sent to users in their battle."
+          },
+          "_Name": "MYSTATUS",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "clink": {
+                  "_name": "MYSTATUS:client"
+                },
+                "_Name": "status",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "See the \n command for possible values of this parameter."
+              }
+            ]
+          },
+          "Description": "Sent by the server to all registered clients,\n      indicating that a client's status changed.\n      Note that client's status is considered 0 if not indicated otherwise\n      (for example, when you login,\n      the server sends only statuses of those clients whose statuses differ from 0,\n      to save bandwidth).",
+          "_Name": "CLIENTSTATUS",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "ul": {
+                  "li": [
+                    "b0 = undefined (reserved for future use)",
+                    "b1 = ready (0=not ready, 1=ready)",
+                    "b2..b5 = team no. (from 0 to 15. b2 is LSB, b5 is MSB)",
+                    "b6..b9 = ally team no. (from 0 to 15. b6 is LSB, b9 is MSB)",
+                    "b10 = mode (0 = spectator, 1 = normal player)",
+                    "b11..b17 = handicap (7-bit number. Must be in range 0..100). Note: Only host can\n                change handicap values of the players in the battle (with HANDICAP command).\n                These 7 bits are always ignored in this command. They can only be changed\n                using HANDICAP command.",
+                    "b18..b21 = reserved for future use (with pre 0.71 versions these bits were used for team color index)",
+                    "b22..b23 = sync status (0 = unknown, 1 = synced, 2 = unsynced)",
+                    "b24..b27 = side (e.g.: arm, core, tll, ... Side index can be between 0 and 15, inclusive)",
+                    "b28..b31 = undefined (reserved for future use)"
+                  ]
+                },
+                "_Name": "battleStatus",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "An integer, but with limited range:\n          0..2147483647 (use signed int and consider only positive values and zero)\n          This number is sent as text.\n          Each bit has its meaning:"
+              },
+              {
+                "_Name": "myTeamColor",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Should be a 32-bit signed integer in decimal form (e.g. 255 and not FF)\n        where each color channel should occupy 1 byte (e.g. in hexdecimal: $00BBGGRR,\n        B = blue, G = green, R = red).\n        Example: 255 stands for $000000FF."
+              }
+            ]
+          },
+          "Description": "Sent by a client to the server, telling him his battle status changed.",
+          "Response": {
+            "clink": [
+              {
+                "_name": "CLIENTBATTLESTATUS"
+              },
+              {
+                "_name": "UPDATEBATTLEINFO:server"
+              }
+            ],
+            "__text": "The status change will communicated to relevant users via the \n and \n commands."
+          },
+          "_Name": "MYBATTLESTATUS",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "clink": {
+                  "_name": "MYBATTLESTATUS:client"
+                },
+                "_Name": "battleStatus",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "See the \n command\n        for possible values of this argument."
+              },
+              {
+                "clink": {
+                  "_name": "MYBATTLESTATUS:client"
+                },
+                "_Name": "teamColor",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Uses the same format as the one used with\n        the \n command."
+              }
+            ]
+          },
+          "Description": "Sent by the server to users participating in a battle\n      when one of the clients changes his battle status.",
+          "_Name": "CLIENTBATTLESTATUS",
+          "_Source": "server"
+        },
+        {
+          "Description": {
+            "clink": {
+              "_name": "CLIENTBATTLESTATUS"
+            },
+            "__text": "Sent by the server to a user which just opened a battle or joined one.\n      Sent after all \n\n      commands for all clients have been sent."
+          },
+          "Response": {
+            "clink": {
+              "_name": "MYBATTLESTATUS"
+            },
+            "__text": "This command is an invitation for the user with a \n and choose a suitable team, ally-team and color,\n      since the user now knows the battle statuses of other clients."
+          },
+          "_Name": "REQUESTBATTLESTATUS",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "value",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Must be in range [0, 100] (inclusive)."
+              }
+            ]
+          },
+          "Description": {
+            "br": [
+              "",
+              ""
+            ],
+            "__text": "Sent by the founder of the battle when changing a user's handicap value\n      (which is part of that users battle status).\n      \n\n\t  Only the founder can change other users handicap values, and that requests from non-founder users will be ignored."
+          },
+          "_Name": "HANDICAP",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "userName",
+              "_Optional": "no",
+              "_Sentence": "no"
+            }
+          },
+          "Description": {
+            "clink": {
+              "_name": "FORCEQUITBATTLE:server"
+            },
+            "__text": "Sent by the founder of the battle, to tell the server to kick a client from the battle.\n      The server removes the target client from the battle and notifies the target client via \n command."
+          },
+          "_Name": "KICKFROMBATTLE",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "battleID",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": "Sent by the server to notify the battle host that the named user should be kicked from the battle in progress.",
+          "_Name": "KICKFROMBATTLE",
+          "_Source": "server"
+        },
+        {
+          "Description": {
+            "br": [
+              "",
+              ""
+            ],
+            "clink": [
+              {
+                "_name": "LEAVEBATTLE"
+              },
+              {
+                "_name": "LEFTBATTLE:server"
+              }
+            ],
+            "__text": "Sent to a client that was kicked from their current battle by the battle founder.\n      \n\n\t  The client does not need to send \n,\n      as removal has already been done by the server.\n      The only purpose of this command\n      is to notify the client that they were kicked.\n      (The client will also recieve a corresponding \n notification.)"
+          },
+          "_Name": "FORCEQUITBATTLE",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "teamNo",
+                "_Optional": "no",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": "Sent by the founder of a battle\n      to change the team number of a user.\n      The server will update the client's battle status automatically.",
+          "_Name": "FORCETEAMNO",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "teamNo",
+                "_Optional": "no",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": "Sent by the founder of a battle\n      to change the ally team number of a user.\n      The server will update the client's battle status automatically.",
+          "_Name": "FORCEALLYNO",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "userName",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "color",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Should be a 32-bit signed integer in decimal form (e.g. 255 and not FF)\n        where each color channel should occupy 1 byte (e.g. in hexdecimal: $00BBGGRR,\n        B = blue, G = green, R  = red).\n        Example: 255 stands for $000000FF."
+              }
+            ]
+          },
+          "Description": "Sent by the founder of a battle\n      to change the team colour of a team.\n      The server will update the client's battle status automatically.",
+          "_Name": "FORCETEAMCOLOR",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "userName",
+              "_Optional": "no",
+              "_Sentence": "no"
+            }
+          },
+          "Description": "Sent by the founder of a battle\n      to force a given user to become a spectator.\n      The server will update the client's battle status automatically.",
+          "_Name": "FORCESPECTATORMODE",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "unitName1",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Multiple units may follow, but at least one must be present in the arguments list."
+              },
+              {
+                "_Name": "unitName2",
+                "_Optional": "yes",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "...",
+                "_Optional": "yes",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": "Sent by the founder of a battle\n      to tell the server that one or more units are now disabled.\n      The server will update the client's battle status automatically.",
+          "_Name": "DISABLEUNITS",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "unitName1",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Multiple units may follow, but at least one must be present in the arguments list."
+              },
+              {
+                "_Name": "unitName2",
+                "_Optional": "yes",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "...",
+                "_Optional": "yes",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "DISABLEUNITS:client"
+            },
+            "__text": "Sent by the server to all clients in a battle,\n      telling them that some units have been added to disabled units list.\n      Also see the \n command."
+          },
+          "_Name": "DISABLEUNITS",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "unitName1",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Multiple units may follow, but at least one must be present in the arguments list."
+              },
+              {
+                "_Name": "unitName2",
+                "_Optional": "yes",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "...",
+                "_Optional": "yes",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": "Sent by the founder of a battle\n      to tell the server that one or more units are now enabled.\n      The server will update the client's battle status automatically.",
+          "_Name": "ENABLEUNITS",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "unitName1",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Multiple units may follow, but at least one must be present in the arguments list."
+              },
+              {
+                "_Name": "unitName2",
+                "_Optional": "yes",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "...",
+                "_Optional": "yes",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "DISABLEUNITS:client"
+            },
+            "__text": "Sent by the server to all clients in a battle,\n      telling them that some units have been added to enabled units list.\n      Also see the \n command."
+          },
+          "_Name": "ENABLEUNITS",
+          "_Source": "server"
+        },
+        {
+          "Description": "Sent by the founder of a battle,\n      telling the server that he enabled ALL units and,\n      and is thus clearing the disabled units list.",
+          "_Name": "ENABLEALLUNITS",
+          "_Source": "client"
+        },
+        {
+          "Description": "Sent by the server to all clients in a battle,\n      telling them that the disabled units list has been cleared.",
+          "_Name": "ENABLEALLUNITS",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "userName",
+              "_Optional": "no",
+              "_Sentence": "no"
+            }
+          },
+          "Description": "Sent to request that a \"ring\" sound to be played to other user.",
+          "Response": {
+            "clink": {
+              "_name": "RING:server"
+            },
+            "__text": "See \n."
+          },
+          "_Name": "RING",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "userName",
+              "_Optional": "no",
+              "_Sentence": "no"
+            }
+          },
+          "Description": "Sent to notify a client that another user requested that a \"ring\" sound be played to them.",
+          "_Name": "RING",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "name",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "battleStatus",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "teamColor",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Should be a 32-bit signed integer in decimal form (e.g. 255 and not FF)\n        where each color channel should occupy 1 byte (e.g. in hexdecimal: $00BBGGRR,\n        B = blue, G = green, R  = red)."
+              },
+              {
+                "_Name": "ai dll",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              }
+            ]
+          },
+          "Description": "Allows a client to add a bot to the battle.",
+          "_Name": "ADDBOT",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "battleID",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "helps the client verify that the bot is meant for his battle."
+              },
+              {
+                "_Name": "name",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "owner",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "battleStatus",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "teamColor",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Should be 32-bit signed integer in decimal form (e.g. 255 and not FF)\n        where each color channel should occupy 1 byte (e.g. in hexdecimal: $00BBGGRR,\n        B = blue, G = green, R  = red)."
+              },
+              {
+                "_Name": "ai dll",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              }
+            ]
+          },
+          "Description": "Indicates that a client has added a bot to the battle.",
+          "_Name": "ADDBOT",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "name",
+              "_Optional": "no",
+              "_Sentence": "no"
+            }
+          },
+          "Description": "Removes a bot from the battle.",
+          "_Name": "REMOVEBOT",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "battleID",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "helps the client verify that the bot is meant for his battle."
+              },
+              {
+                "_Name": "name",
+                "_Optional": "no",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": "Indicates that a bot has been removed from the battle.",
+          "_Name": "REMOVEBOT",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "name",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "clink": {
+                  "_name": "MYBATTLESTATUS:client"
+                },
+                "_Name": "battleStatus",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Similar to that of the normal client's,\n        see \n for more info."
+              },
+              {
+                "_Name": "teamColor",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Should be a 32-bit signed integer in decimal form (e.g. 255 and not FF)\n        where each color channel should occupy 1 byte (e.g. in hexdecimal: $00BBGGRR,\n        B = blue, G = green, R  = red)."
+              }
+            ]
+          },
+          "Description": "Sent by a client when he is trying to update the status of a bot.\n      Only the bot owner and battle host may update a bot's status.",
+          "_Name": "UPDATEBOT",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "battleID",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "helps the client verify that the bot is meant for his battle."
+              },
+              {
+                "_Name": "name",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "clink": {
+                  "_name": "MYSTATUS:client"
+                },
+                "_Name": "battleStatus",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Similar to that of the normal client's,\n        see \n for more info."
+              },
+              {
+                "_Name": "teamColor",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "Should be a 32-bit signed integer in decimal form (e.g. 255 and not FF)\n        where each color channel should occupy 1 byte (e.g. in hexdecimal: $00BBGGRR,\n        B = blue, G = green, R  = red)."
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "UPDATEBOT:client"
+            },
+            "__text": "Sent by the server notifying a client in the battle that one of the bots just got his status updated.\n      Also see the \n command."
+          },
+          "_Name": "UPDATEBOT",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "allyNo",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "left",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "top",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "right",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "bottom",
+                "_Optional": "no",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": "Adds a start rectangle for the 'allyno' ally team.\n      Only the battle founder may use this command.\n      See lobby client implementations and Spring docs for more info on this one.\n      \"left\", \"top\", \"right\" and \"bottom\" refer to a virtual rectangle that is 200x200 in size,\n      where coordinates should be in the interval [0, 200].",
+          "_Name": "ADDSTARTRECT",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "allyNo",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "left",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "top",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "right",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "bottom",
+                "_Optional": "no",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": "Sent by the server to clients participating in a battle (except for the host).\n      See lobby client implementations and Spring docs for more info on this one.\n      \"left\", \"top\", \"right\" and \"bottom\" refer to a virtual rectangle that is 200x200 in size,\n      where coordinates should be in the interval [0, 200].",
+          "_Name": "ADDSTARTRECT",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "allyNo",
+              "_Optional": "no",
+              "_Sentence": "no"
+            }
+          },
+          "Description": "Removing a start rectangle the for 'allyNo' ally team.\n      Sent by the host of the battle.\n      See client implementations and Spring docs for more info on this one.",
+          "_Name": "REMOVESTARTRECT",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "allyNo",
+              "_Optional": "no",
+              "_Sentence": "no"
+            }
+          },
+          "Description": {
+            "clink": {
+              "_name": "ADDSTARTRECT:client"
+            },
+            "__text": "Removing a start rectangle the for 'allyNo' ally team.\n      Sent to clients participating in a battle (except for the host).\n      Also see \n command."
+          },
+          "_Name": "REMOVESTARTRECT",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "pair1",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              },
+              {
+                "_Name": "pair2",
+                "_Optional": "yes",
+                "_Sentence": "yes"
+              },
+              {
+                "_Name": "pair3",
+                "_Optional": "yes",
+                "_Sentence": "yes"
+              },
+              {
+                "_Name": "...",
+                "_Optional": "yes",
+                "_Sentence": "yes"
+              }
+            ]
+          },
+          "Description": {
+            "ul": {
+              "li": [
+                "SETSCRIPTTAGS game/startmetal=1000",
+                "SETSCRIPTTAGS game/startenergy=1000",
+                "SETSCRIPTTAGS game/maxunits=500",
+                "SETSCRIPTTAGS game/startpostype=1",
+                "SETSCRIPTTAGS game/gamemode=0",
+                "SETSCRIPTTAGS game/limitdgun=1",
+                "SETSCRIPTTAGS game/diminishingmms=0",
+                "SETSCRIPTTAGS game/ghostedbuildings=1"
+              ]
+            },
+            "__text": "Sent by a client (battle host), to inform other clients about current\n      battle configuration (start positions type, mod options, map options...).\n      Only the battle host itself needs to write the corresponding script tags\n      into script.txt, other battle clients should merely use them for display\n      purposes.\n\n      The [pair] format is \"key=value can have spaces\". Keys may not contain\n      spaces, and are expected to use the '/' character to separate tables, see\n      example:\n      \n\n      Though in reality, all tags are joined together in a single command.\n      Note that when specifying multiple key+value pairs,\n      they must be separated by TAB characters.\n\n      All keys are made lowercase by the server.\n\n      See the examples bellow."
+          },
+          "Examples": {
+            "Example": [
+              "SETSCRIPTTAGS game/modoptions/test=true",
+              {
+                "b": "[TAB]",
+                "__text": "SETSCRIPTTAGS game/startmetal=1000\ngame/startenergy=1000"
+              },
+              {
+                "b": "[TAB]",
+                "__text": "See whitespaces: SETSCRIPTTAGS game/startmetal=1000\ngame/startenergy=1000"
+              }
+            ]
+          },
+          "_Name": "SETSCRIPTTAGS",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "pair1",
+                "_Optional": "no",
+                "_Sentence": "yes"
+              },
+              {
+                "_Name": "pair2",
+                "_Optional": "yes",
+                "_Sentence": "yes"
+              },
+              {
+                "_Name": "pair3",
+                "_Optional": "yes",
+                "_Sentence": "yes"
+              },
+              {
+                "_Name": "...",
+                "_Optional": "yes",
+                "_Sentence": "yes"
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "SETSCRIPTTAGS:client"
+            },
+            "__text": "Relayed from battle host's \n message.\n      A client lobby program must process these tags and apply them accordingly\n      to the GUI presenting current battle configuration to the player.\n\n      All keys are made lowercase by the server."
+          },
+          "Examples": {
+            "Example": [
+              "SETSCRIPTTAGS game/modoptions/test=true",
+              {
+                "b": "[TAB]",
+                "__text": "SETSCRIPTTAGS game/startmetal=1000\ngame/startenergy=1000"
+              },
+              {
+                "b": "[TAB]",
+                "__text": "See whitespaces: SETSCRIPTTAGS game/startmetal=1000\ngame/startenergy=1000"
+              }
+            ]
+          },
+          "_Name": "SETSCRIPTTAGS",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "key1",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "key2",
+                "_Optional": "yes",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "key3",
+                "_Optional": "yes",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "...",
+                "_Optional": "yes",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": "Sent by a client (battle host), to inform other clients that a battle\n      configuration setting has been removed (this is mainly usefull when\n      changing map with map options).",
+          "Examples": {
+            "Example": "REMOVESCRIPTTAGS game/modoptions/test1 game/modoptions/test2"
+          },
+          "_Name": "REMOVESCRIPTTAGS",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "key1",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "key2",
+                "_Optional": "yes",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "key3",
+                "_Optional": "yes",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "...",
+                "_Optional": "yes",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "REMOVESCRIPTTAGS:client"
+            },
+            "__text": "Relayed from battle host's \n message.\n      A client lobby program has to remove these from the GUI presenting\n      current battle configuration to the player."
+          },
+          "Examples": {
+            "Example": "REMOVESCRIPTTAGS game/modoptions/test1 game/modoptions/test2"
+          },
+          "_Name": "REMOVESCRIPTTAGS",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "userName=value",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "The username of the user to be ignored."
+              },
+              {
+                "_Name": "reason=value",
+                "_Optional": "yes",
+                "_Sentence": "yes",
+                "__text": "Reason for the ignore."
+              }
+            ]
+          },
+          "Description": "Tells the server to add the user to the client's ignore list. Doing this will prevent any SAID*, SAY* and RING commands to be received from the ignored user.\n        This command uses named arguments, see \"Named Arguments\" chapter of the Intro section.",
+          "Examples": {
+            "Example": [
+              "IGNORE userName=joe<TAB>reason=Really annoying, keeps pestering me to play DSD.",
+              "IGNORE userName=anotherdsdguy"
+            ]
+          },
+          "_Name": "IGNORE",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "userName=value",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "The username of the ignored user."
+              },
+              {
+                "_Name": "reason=value",
+                "_Optional": "yes",
+                "_Sentence": "yes",
+                "__text": "Reason for the ignore."
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "IGNORE:client"
+            },
+            "__text": "Tells the client that the user has been ignored (usually as a result of the IGNORE command sent by the client, but other sources are also possible).\n        Also see the \n command.\n        This command uses named arguments, see \"Named Arguments\" chapter of the Intro section."
+          },
+          "_Name": "IGNORE",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "userName=value",
+              "_Optional": "no",
+              "_Sentence": "no",
+              "__text": "The username of the user to be unignored."
+            }
+          },
+          "Description": {
+            "clink": {
+              "_name": "IGNORE:client"
+            },
+            "__text": "Tells the server to remove the user to the client's ignore list.\n        Also see the \n command.\n        This command uses named arguments, see \"Named Arguments\" chapter of the Intro section."
+          },
+          "Examples": {
+            "Example": "UNIGNORE userName=joe"
+          },
+          "_Name": "UNIGNORE",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": {
+              "_Name": "userName=value",
+              "_Optional": "no",
+              "_Sentence": "no",
+              "__text": "The username of the unignored user."
+            }
+          },
+          "Description": {
+            "clink": {
+              "_name": "UNIGNORE:client"
+            },
+            "__text": "Tells the client that the user has been unignored (usually as a result of the UNIGNORE command sent by the client, but other sources are also possible).\n        Also see the \n command.\n        This command uses named arguments, see \"Named Arguments\" chapter of the Intro section."
+          },
+          "_Name": "UNIGNORE",
+          "_Source": "server"
+        },
+        {
+          "Description": "Sent by a client when requesting its ignore list.",
+          "Examples": {
+            "Example": "IGNORELIST"
+          },
+          "_Name": "IGNORELIST",
+          "_Source": "client"
+        },
+        {
+          "Description": "Sent by the server when sending the ignore list to the client.",
+          "Response": {
+            "clink": [
+              {
+                "_name": "IGNORELIST:server"
+              },
+              {
+                "_name": "IGNORELISTEND"
+              }
+            ],
+            "__text": "0 or more \n commands\n        and finally a \n command."
+          },
+          "_Name": "IGNORELISTBEGIN",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "userName=value",
+                "_Optional": "no",
+                "_Sentence": "no",
+                "__text": "The username of the user to be ignored."
+              },
+              {
+                "_Name": "reason=value",
+                "_Optional": "yes",
+                "_Sentence": "yes",
+                "__text": "Reason for the ignore."
+              }
+            ]
+          },
+          "Description": {
+            "clink": {
+              "_name": "IGNORELISTBEGIN"
+            },
+            "__text": "Multiple commands of this kind may be sent after a \n command (or none, if the ignore list is empty).\n        This command uses named arguments, see \"Named Arguments\" chapter of the Intro section."
+          },
+          "Examples": {
+            "Example": [
+              "IGNORE userName=joe<TAB>reason=Really annoying, keeps pestering me to play DSD.",
+              "IGNORE userName=anotherdsdguy"
+            ]
+          },
+          "_Name": "IGNORELIST",
+          "_Source": "server"
+        },
+        {
+          "Description": {
+            "clink": [
+              {
+                "_name": "IGNORELIST:server"
+              },
+              {
+                "_name": "IGNORELISTBEGIN"
+              }
+            ],
+            "__text": "Sent by the server after it has finished sending the ignore list for a client.\n        Also see the \n and \n commands."
+          },
+          "_Name": "IGNORELISTEND",
+          "_Source": "server"
+        },
+        {
+          "Description": {
+            "clink": [
+              {
+                "_name": "TASSERVER"
+              },
+              {
+                "_name": "LOGIN"
+              }
+            ],
+            "__text": "A client may send this command after it has received \n\n      to query the server for supported comp-flags that may be specified on \n."
+          },
+          "Response": {
+            "clink": {
+              "_name": "COMPFLAGS:server"
+            },
+            "__text": "See \n."
+          },
+          "_Name": "LISTCOMPFLAGS",
+          "_Source": "client"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "compFlag1",
+                "_Optional": "yes",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "compFlag2",
+                "_Optional": "yes",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "...",
+                "_Optional": "yes",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": {
+            "clink": [
+              {
+                "_name": "LISTCOMPFLAGS:client"
+              },
+              {
+                "_name": "LOGIN"
+              }
+            ],
+            "__text": "Sent as a response to a \n command.\n      The server sends a list of supported comp-flags that may be specified\n      by the client on \n."
+          },
+          "Examples": {
+            "Example": [
+              "COMPFLAGS a b",
+              "COMPFLAGS a b sp",
+              "COMPFLAGS"
+            ]
+          },
+          "_Name": "COMPFLAGS",
+          "_Source": "server"
+        },
+        {
+          "Arguments": {
+            "Argument": [
+              {
+                "_Name": "ip",
+                "_Optional": "no",
+                "_Sentence": "no"
+              },
+              {
+                "_Name": "port",
+                "_Optional": "no",
+                "_Sentence": "no"
+              }
+            ]
+          },
+          "Description": "Sent by the server when running in \"redirection mode\".\n      When a client connects, the server will send him only this message\n      and disconnect the socket immediately.\n      The client should connect to the given IP and port, in that case.\n      This command may be useful when the official server ip/address changes,\n      so that clients are automatically redirected to the new one.",
+          "Examples": {
+            "Example": "REDIRECT 87.96.164.14 8200"
+          },
+          "_Name": "REDIRECT",
+          "_Source": "server"
+        },
+        {
+          "Description": {
+            "br": "",
+            "__text": "A command used to notify that a command sent to the server has either failed, been denied, or otherwise cannot be completed. \n\t\t\n\n\t\tThis normally is used as a generic error command, to inform lobby/client developers that they have not used the protocol correctly."
+          },
+          "_Name": "FAILED",
+          "_Source": "server"
+        },
+        {
+          "Description": "This command posts a message in particular channels, calling for players. It is currently the (only) test case for a client command used JSON format.",
+          "_Name": "PROMOTE",
+          "_Source": "client"
+        },
+        {
+          "Description": "A command used to send information to clients in JSON format. (Currently rarely used.)",
+          "_Name": "JSON",
+          "_Source": "server"
+        }
+      ]
+    }
+  }
+}

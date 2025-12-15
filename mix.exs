@@ -29,11 +29,19 @@ defmodule GenSpring.MixProject do
       {:nimble_options, "~> 1.1"},
       {:thousand_island, "~> 1.4"},
       {:typed_struct, "~> 0.3"}
-    ] ++ test_deps()
+    ] ++ dev_deps() ++ test_deps()
   end
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
+
+  defp dev_deps do
+    [
+      {:sweet_xml, "~> 0.7.5", only: :dev},
+      {:elixir_xml, "~> 0.0.1", only: :dev},
+      {:xml_json, "~> 0.5.0"}
+    ]
+  end
 
   defp test_deps do
     [
