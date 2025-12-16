@@ -8,16 +8,14 @@ defmodule GenSpring.MixProject do
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      elixirc_paths: elixirc_paths(Mix.env()),
-      aliases: [test: "test --no-start"]
+      elixirc_paths: elixirc_paths(Mix.env())
     ]
   end
 
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger],
-      mod: {GenSpring.Application, []}
+      extra_applications: [:logger]
     ]
   end
 
@@ -39,7 +37,7 @@ defmodule GenSpring.MixProject do
     [
       {:sweet_xml, "~> 0.7.5", only: :dev},
       {:elixir_xml, "~> 0.0.1", only: :dev},
-      {:xml_json, "~> 0.5.0"}
+      {:xml_json, "~> 0.5.0", only: :dev}
     ]
   end
 

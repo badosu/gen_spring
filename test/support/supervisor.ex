@@ -1,25 +1,21 @@
 defmodule SupervisorHelper do
   def supervision_tree(supervisor) do
-    make_supervision_tree(supervisor)
-  end
-
-  def get_child(supervisor, finder) do
-    Supervisor.which_children(supervisor)
-    |> Enum.find_value(finder)
-  end
-
-  defp make_supervision_tree(supervisor) do
     Enum.reduce(Supervisor.which_children(supervisor), [], fn child_spec, acc ->
       {id, pid, type, modules} = child_spec
 
       child = [id: id, pid: pid, modules: modules]
 
       if type == :supervisor do
-        [child ++ [supervised: make_supervision_tree(pid)] | acc]
+        [child ++ [supervised: supervision_tree(pid)] | acc]
       else
         [child | acc]
       end
     end)
+  end
+
+  def get_child(supervisor, finder) do
+    Supervisor.which_children(supervisor)
+    |> Enum.find_value(finder)
   end
 
   def await_child(supervisor, modules, timeout \\ 1000, poll_duration \\ 5) do

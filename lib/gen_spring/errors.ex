@@ -1,11 +1,14 @@
 defmodule GenSpring.InitError do
   defexception [:reason, :module_opts, :module]
 
-  def message(%{reason: :no_genspring} = init_error),
-    do: "Module #{inspect(init_error.module)} does not implement the GenSpring behavior"
+  def message(%__MODULE__{reason: :no_genspring} = init_error),
+    do: "module #{inspect(init_error.module)} does not implement the GenSpring behavior"
 
-  def message(init_error),
-    do: "GenSpring server #{inspect(init_error.module)} failed to initialize"
+  def message(%__MODULE__{reason: {:invalid_init_value, value}} = init_error),
+    do: "unexpected return for &#{inspect(init_error.module)}.init/2: #{inspect(value)}"
+
+  def message(%__MODULE__{} = init_error),
+    do: "failed to initialize #{inspect(init_error.module)}: #{inspect(init_error.reason)}"
 
   def exception(reason, spring) do
     fields =

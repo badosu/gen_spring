@@ -30,11 +30,9 @@ defmodule SpringCodegen.Param do
         |> String.replace("...", "variadic")
         |> Macro.underscore()
 
-      required = param.required == nil or not param.required
-
       opts = [
         description: param.description,
-        optional: not required
+        optional: param.required == nil or not param.required
       ]
 
       "#{name}: #{inspect(opts)}"

@@ -1,0 +1,14 @@
+# codegen: do not edit
+defmodule GenSpring.Protocol.Requests do
+  alias GenSpring.Protocol.Requests
+
+  use GenSpring.Requests, <%=
+      @requests
+      |> Enum.map(fn request ->
+        module = SpringCodegen.Codegen.module_name(request)
+                |> String.replace("GenSpring.Protocol.", "")
+        {request.method, :"Elixir.#{module}"}
+      end)
+      |> Kernel.inspect(pretty: true, limit: :infinity)
+    %>
+end

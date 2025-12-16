@@ -1,28 +1,33 @@
 defmodule GenSpring.BufferTest do
-  use ExUnit.Case, async: true
-  use Mimic
-
   alias GenSpring.Communication.Transport
-  alias GenSpring.Requests
+  alias GenSpring.Protocol.Requests
   alias GenSpring.Buffer
   alias GenSpring.TransportError
 
+  use ExUnit.Case, async: true
+  use Mimic
+
+  setup :verify_on_exit!
+
+  defmodule MySpringServer do
+    use GenSpring.Handler
+
+    @impl GenSpring.Handler
+    def handle_request(_request, _buffer, state) do
+      {:noreply, state}
+    end
+  end
+
   describe "&init/1" do
     test "links to a new GenSpring instance" do
-      module_opts = {MySpringServer, my: :opts}
-      me = self()
+      module_opts = {MySpringServer, my: :opts, supervisor: TestMySpringSup}
 
-      GenSpring
-      |> expect(:start_link, fn opts ->
-        assert Keyword.fetch!(opts, :buffer) == me
-        assert Keyword.fetch!(opts, :server) == module_opts
+      start_supervised!({DynamicSupervisor, name: TestMySpringSup, strategy: :one_for_one})
 
-        {:ok, me}
-      end)
+      assert {:ok, state} = Buffer.init(server: module_opts, transport: :transport)
 
-      {:ok, state} = Buffer.init(server: module_opts, transport: :transport)
-
-      assert %{server: ^me, transport: :transport} = state
+      assert %{server: server, transport: :transport} = state
+      assert Process.alive?(server)
     end
   end
 
@@ -89,7 +94,6 @@ defmodule GenSpring.BufferTest do
     test "sends requests to the client" do
       transport = :transport
       buffer = start_link_supervised!({Buffer, transport: transport, server: self()})
-      stub_transport(transport, buffer)
 
       message_1 = "message_1"
       request_1 = %{request: :one}
@@ -103,6 +107,7 @@ defmodule GenSpring.BufferTest do
       end)
 
       Transport
+      |> allow(self(), buffer)
       |> expect(:send, fn dest, data ->
         assert dest == transport
         assert data == message_1
@@ -116,7 +121,6 @@ defmodule GenSpring.BufferTest do
     test "returns encode errors" do
       transport = :transport
       buffer = start_link_supervised!({Buffer, transport: transport, server: self()})
-      stub_transport(transport, buffer)
 
       request_1 = %{request: :one}
       error_1 = GenSpring.EncodeError.exception(request_1)
@@ -135,7 +139,6 @@ defmodule GenSpring.BufferTest do
     test "returns transport errors" do
       transport = :transport
       buffer = start_link_supervised!({Buffer, transport: transport, server: self()})
-      stub_transport(transport, buffer)
 
       request_1 = %{request: :one}
       message_1 = "message_1"
@@ -150,7 +153,8 @@ defmodule GenSpring.BufferTest do
 
       error_return = {:error, TransportError.exception(:closed)}
 
-      Transport
+      GenSpring.Communication.Transport
+      |> allow(self(), buffer)
       |> expect(:send, fn dest, msg ->
         assert dest == transport
         assert msg == message_1
@@ -160,15 +164,5 @@ defmodule GenSpring.BufferTest do
 
       assert error_return == Buffer.request(buffer, request_1)
     end
-  end
-
-  defp stub_transport(transport, buffer) do
-    Transport
-    |> allow(self(), buffer)
-    |> stub(:close, fn dest, {exception, stacktrace} ->
-      assert dest == transport
-
-      reraise exception, stacktrace
-    end)
   end
 end

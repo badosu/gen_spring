@@ -10,7 +10,7 @@ defmodule SpringCodegen do
     schema_path = opts[:schema]
 
     SpringCodegen.MetaModel.fetch!(schema_path)
-    |> do_generate("lib/gen_spring/requests")
+    |> do_generate("lib/gen_spring/protocol")
   end
 
   defp do_generate(meta_model, path) do
@@ -21,26 +21,29 @@ defmodule SpringCodegen do
     generate_spring_requests(meta_model, path)
   end
 
-  spring_requests_template = Path.join("priv/spring_codegen", "spring_requests.ex.eex")
+  spring_requests_template = Path.join("priv/spring_codegen", "protocol_requests.ex.eex")
   EEx.function_from_file(:defp, :render_spring_requests, spring_requests_template, [:assigns])
 
   defp generate_spring_requests(meta_model, path) do
-    path = Path.join(path, "spring_requests.ex")
-    source_code = render_spring_requests(meta_model.requests)
+    path = Path.join(path, "requests.ex")
+    source_code = render_spring_requests(%{requests: meta_model.requests})
 
     File.write!(path, source_code)
   end
 
   defp generate_requests(meta_model, path) do
-    for request_spec <- meta_model.requests do
-      source_code = SpringCodegen.Codegen.to_string(request_spec)
+    path = Path.join(path, "requests/")
+    File.mkdir_p!(path)
 
-      File.mkdir_p!(path)
+    for request <- meta_model.requests do
+      file_name =
+        SpringCodegen.Codegen.name(request)
+        |> Macro.underscore()
 
-      File.write!(
-        Path.join(path, Macro.underscore(SpringCodegen.Codegen.name(request_spec)) <> ".ex"),
-        source_code
-      )
+      source_code = SpringCodegen.Codegen.to_string(request)
+
+      Path.join(path, file_name <> ".ex")
+      |> File.write!(source_code)
     end
   end
 

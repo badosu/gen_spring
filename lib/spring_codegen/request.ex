@@ -29,20 +29,18 @@ defmodule SpringCodegen.Request do
     require EEx
 
     def module_name(request) do
-      "GenSpring.Requests.#{name(request)}"
+      "GenSpring.Protocol.Requests.#{name(request)}"
     end
 
     def name(%{method: method}) do
-      String.downcase(method)
-      |> Macro.camelize()
+      String.upcase(method)
     end
-
-    @path Path.join("priv/spring_codegen", "request.ex.eex")
 
     def to_string(request) do
       render(%{request: request})
     end
 
+    @path Path.join("priv/spring_codegen", "request.ex.eex")
     EEx.function_from_file(:defp, :render, @path, [:assigns])
   end
 end

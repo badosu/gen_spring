@@ -2,10 +2,10 @@ defmodule GenSpring.Buffer do
   use GenServer
   use TypedStruct
 
-  alias GenSpring.SpringRequests
   alias GenSpring.Communication.Transport
+  alias GenSpring.Protocol.Requests
 
-  @type request_result() :: {:ok, Request.t()} | {:error, Requests.ParseError.t()}
+  @type request_result() :: {:ok, any()} | {:error, GenSpring.ParseError.t()}
   @type request_queue() :: {List.t(request_result()), List.t(request_result())}
 
   typedstruct do
@@ -32,48 +32,70 @@ defmodule GenSpring.Buffer do
     end
   end
 
-  @impl GenServer
-  def handle_info(:pop_request, state), do: {:continue, :pop_request, state}
-
-  @impl GenServer
-  def handle_info(info, state) do
-    dbg(info: info)
-    {:noreply, state}
+  def close(buffer_pid, reason) do
+    GenServer.stop(buffer_pid, reason)
   end
-
-  def close(buffer_pid, reason), do: GenServer.stop(buffer_pid, reason)
-
-  @initial_state %{request_queue: :queue.new()}
 
   @impl GenServer
   def init(opts) do
-    {:ok, server} = start_server(opts)
+    case start_server(opts) do
+      {:ok, server} ->
+        state = initial_state(server, Keyword.fetch!(opts, :transport))
 
-    state = Map.merge(@initial_state, %{server: server, transport: opts[:transport]})
+        Process.monitor(server)
 
-    {:ok, struct!(__MODULE__, state)}
+        {:ok, state}
+
+      {:error, reason} ->
+        {:stop, reason}
+    end
   end
 
   @impl GenServer
   def terminate(reason, buffer) do
     # FIXME: devise how/whether GenSpring server handles error closing the
     # socket and ensure we always exit it
-    :ok = Transport.close(buffer.transport, reason)
 
-    unhandled_requests = buffer.request_queue |> :queue.to_list() |> Enum.map(&elem(&1, 1))
+    :sys.terminate(buffer.server, reason)
 
-    :sys.terminate(buffer.server, {:shutdown, {reason, unhandled_requests}})
+    # unhandled_requests = buffer.request_queue |> :queue.to_list() |> Enum.map(&elem(&1, 1))
+    # reason =
+    #   if Enum.empty?(unhandled_requests),
+    #     do: reason,
+    #     else: {reason, unhandled_requests: unhandled_requests}
   end
 
   @impl GenServer
-  def handle_call({:request, messages}, _from, %__MODULE__{} = buffer),
-    do: {:reply, send_messages(buffer, messages), buffer}
+  def handle_info(:pop_request, state), do: {:continue, :pop_request, state}
+
+  @impl true
+  def handle_info({:EXIT, _from, _reason}, state) do
+    {:noreply, state}
+  end
+
+  @impl GenServer
+  def handle_info({:DOWN, _ref, :process, pid, reason}, %__MODULE__{server: server} = state)
+      when pid == server do
+    {:stop, reason, state}
+  end
+
+  @impl GenServer
+  def handle_info(info, state) do
+    dbg(info)
+
+    {:noreply, state}
+  end
+
+  @impl GenServer
+  def handle_call({:request, messages}, _from, %__MODULE__{} = buffer) do
+    {:reply, send_messages(buffer, messages), buffer}
+  end
 
   @impl GenServer
   def handle_cast({:push_messages, incoming_messages}, %__MODULE__{} = buffer) do
     incoming_requests =
       incoming_messages
-      |> Enum.map(&SpringRequests.decode/1)
+      |> Enum.map(&GenSpring.Protocol.Requests.decode/1)
       |> :queue.from_list()
 
     request_queue = :queue.join(buffer.request_queue, incoming_requests)
@@ -95,18 +117,33 @@ defmodule GenSpring.Buffer do
 
   defp start_server(opts) do
     case Keyword.fetch!(opts, :server) do
-      server when is_pid(server) -> {:ok, server}
-      server_opts -> GenSpring.start_link(buffer: self(), server: server_opts)
+      server when is_pid(server) ->
+        {:ok, server}
+
+      {handler_module, handler_opts} ->
+        Process.flag(:trap_exit, true)
+
+        GenSpring.Server.start_child(GenSpring.Handler, self(), handler_module, handler_opts)
     end
+  end
+
+  @initial_state %{request_queue: :queue.new()}
+  defp initial_state(server, transport) do
+    state = Map.merge(@initial_state, %{server: server, transport: transport})
+
+    struct!(__MODULE__, state)
   end
 
   defp encode_requests(requests) do
     requests
     |> List.wrap()
     |> Enum.reduce_while({:ok, []}, fn request, {:ok, messages} ->
-      case SpringRequests.encode(request) do
-        {:ok, message} -> {:cont, {:ok, messages ++ [message]}}
-        {:error, error} -> {:halt, {:error, error}}
+      case Requests.encode(request) do
+        {:ok, message} ->
+          {:cont, {:ok, messages ++ [message]}}
+
+        {:error, error} ->
+          {:halt, {:error, error}}
       end
     end)
   end

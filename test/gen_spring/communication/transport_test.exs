@@ -15,8 +15,7 @@ defmodule GenSpring.Communication.TransportTest do
         {:ok, :buffer}
       end)
 
-      assert {:continue, state} = Transport.handle_connection(:socket, server: module_opts)
-      assert match?(%{msg_buffer: "", buffer: :buffer}, state)
+      assert {:continue, :buffer} = Transport.handle_connection(:socket, server: module_opts)
     end
   end
 
@@ -24,28 +23,18 @@ defmodule GenSpring.Communication.TransportTest do
     test "sends incoming messages to the buffer" do
       Buffer
       |> expect(:push_messages, fn :buffer, messages ->
-        assert messages == ["Hello World", "Merry"]
+        assert messages == ["Hello World"]
 
         :ok
       end)
       |> expect(:push_messages, fn :buffer, messages ->
-        assert messages == ["Christmas"]
+        assert messages == ["Merry Christmas"]
 
         :ok
       end)
 
-      state = %{msg_buffer: "", buffer: :buffer}
-
-      result = Transport.handle_data("Hello", :socket, state)
-      assert {:continue, state} = result
-      result = Transport.handle_data(" Wor", :socket, state)
-      assert {:continue, state} = result
-      result = Transport.handle_data("ld\nMerry\n", :socket, state)
-      assert {:continue, state} = result
-      result = Transport.handle_data("Christmas\n...", :socket, state)
-      assert {:continue, state} = result
-
-      assert match?(%{msg_buffer: "...", buffer: :buffer}, state)
+      assert {:continue, :buffer} = Transport.handle_data("Hello World", :socket, :buffer)
+      assert {:continue, :buffer} = Transport.handle_data("Merry Christmas", :socket, :buffer)
     end
   end
 end
